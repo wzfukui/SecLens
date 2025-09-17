@@ -49,7 +49,7 @@
             <ul class="bulletin-list">
                 {% for bulletin in selected_source.items %}
                     <li class="bulletin-card">
-                        <h2><a href="{{ bulletin.origin_url or '#' }}" target="_blank" rel="noopener noreferrer">{{ bulletin.title }}</a></h2>
+                        <h2><a href="/bulletins/{{ bulletin.id }}">{{ bulletin.title }}</a></h2>
                         <div class="meta">
                             {% if bulletin.published_at %}
                                 发布时间 {{ bulletin.published_at.strftime('%Y-%m-%d %H:%M UTC') }}
@@ -58,15 +58,17 @@
                                 抓取时间 {{ bulletin.fetched_at.strftime('%Y-%m-%d %H:%M UTC') }}
                             {% endif %}
                         </div>
-                        {% set text = bulletin.summary or bulletin.body_text %}
-                        {% if text %}
-                            {% set snippet = text[:360] %}
-                            <div class="excerpt" data-snippet="{{ snippet|e }}" data-expanded="false">
-                                <p>{{ snippet }}{% if text|length > 360 %}<span class="ellipsis">…</span>{% endif %}</p>
-                                {% if text|length > 360 %}
+                        {% set display_text = bulletin.summary or bulletin.body_text %}
+                        {% if display_text %}
+                            {% set snippet = display_text[:360] %}
+                            {% set show_more = display_text|length > 360 %}
+                            <div class="excerpt" data-expanded="false" data-show-more="{{ 'true' if show_more else 'false' }}">
+                                <p>{{ snippet }}{% if show_more %}<span class="ellipsis">…</span>{% endif %}</p>
+                                <div class="snippet-text" hidden>{{ snippet }}</div>
+                                <div class="full-text" hidden>{{ display_text }}</div>
+                                {% if show_more %}
                                     <button class="toggle-more" type="button">更多</button>
                                 {% endif %}
-                                <div class="full-text" hidden>{{ text }}</div>
                             </div>
                         {% endif %}
                         {% if bulletin.extra %}
@@ -83,7 +85,9 @@
                             </details>
                         {% endif %}
                         <div class="tags">
-                            <span class="tag">{{ selected_source.title }}</span>
+                            {% if selected_source %}
+                                <span class="tag">{{ selected_source.title }}</span>
+                            {% endif %}
                             {% for label in bulletin.labels or [] %}
                                 <span class="tag">{{ label }}</span>
                             {% endfor %}
@@ -152,17 +156,15 @@
     document.querySelectorAll('.excerpt').forEach(container => {
         const button = container.querySelector('.toggle-more');
         const paragraph = container.querySelector('p');
-        const fullTextNode = container.querySelector('.full-text');
-        if (!button || !paragraph || !fullTextNode) {
+        const snippetNode = container.querySelector('.snippet-text');
+        const fullNode = container.querySelector('.full-text');
+        const showMore = container.dataset.showMore === 'true';
+        if (!showMore || !paragraph || !snippetNode || !fullNode) {
+            if (button && !showMore) button.remove();
             return;
         }
-        const snippet = container.dataset.snippet || '';
-        const fullText = fullTextNode.textContent.trim();
-        const truncated = fullText.length > snippet.length;
-        if (!truncated) {
-            button.remove();
-            return;
-        }
+        const snippetText = snippetNode.textContent.trim();
+        const fullText = fullNode.textContent.trim();
         button.addEventListener('click', () => {
             const expanded = container.dataset.expanded === 'true';
             if (!expanded) {
@@ -170,7 +172,7 @@
                 button.textContent = '收起';
                 container.dataset.expanded = 'true';
             } else {
-                paragraph.textContent = snippet;
+                paragraph.textContent = snippetText;
                 const ellipsis = document.createElement('span');
                 ellipsis.className = 'ellipsis';
                 ellipsis.textContent = '…';

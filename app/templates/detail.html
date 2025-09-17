@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="static-page">
+    <h2>{{ bulletin.title }}</h2>
+    <p style="color:#475569; margin-top:0.5rem;">
+        来源：{{ bulletin.source_slug }}
+        {% if bulletin.published_at %} · 发布时间 {{ bulletin.published_at.strftime('%Y-%m-%d %H:%M UTC') }}{% endif %}
+        {% if bulletin.fetched_at %} · 抓取时间 {{ bulletin.fetched_at.strftime('%Y-%m-%d %H:%M UTC') }}{% endif %}
+    </p>
+    {% if bulletin.origin_url %}
+        <p><a href="{{ bulletin.origin_url }}" target="_blank" rel="noopener noreferrer">原文链接</a></p>
+    {% endif %}
+
+    {% if bulletin.summary %}
+        <h3>摘要</h3>
+        <p>{{ bulletin.summary }}</p>
+    {% endif %}
+
+    {% if bulletin.body_text and bulletin.body_text != bulletin.summary %}
+        <h3>正文</h3>
+        <p style="white-space:pre-line;">{{ bulletin.body_text }}</p>
+    {% endif %}
+
+    {% if bulletin.labels %}
+        <h3>标签</h3>
+        <ul>
+            {% for label in bulletin.labels %}
+                <li>{{ label }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if bulletin.extra %}
+        <h3>扩展字段</h3>
+        <dl>
+            {% for key, value in bulletin.extra.items() %}
+                <dt>{{ key.replace('_',' ') }}</dt>
+                <dd>{{ value | tojson }}</dd>
+            {% endfor %}
+        </dl>
+    {% endif %}
+</section>
+{% endblock %}

@@ -111,7 +111,7 @@ def bulletins_rss(
         guid.set("isPermaLink", "false")
 
     xml_bytes = ET.tostring(rss, encoding="utf-8", xml_declaration=True)
-    return Response(content=xml_bytes, media_type="application/rss+xml")
+    return Response(content=xml_bytes, media_type="application/rss+xml; charset=utf-8")
 
 
 @router.get("/{bulletin_id}", response_model=BulletinOut)

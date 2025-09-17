@@ -3,66 +3,121 @@
 <section class="static-page">
     <h2>平台工作流程</h2>
     <ol>
-        <li>开发者打包插件（含 manifest 与代码）并通过 <code>/v1/plugins/upload</code> 上传；</li>
-        <li>管理员在后台激活插件，系统生成首次运行时间；</li>
-        <li>调度脚本 <code>scripts/run_scheduler.py</code> 周期执行，自动导入并运行插件入口函数；</li>
-        <li>插件运行结果通过 ingest API 写入公告表，并记录运行日志；</li>
-        <li>前端首页、RSS、API 会实时读取最新的结构化数据。</li>
+        <li><strong>开发插件</strong>：在本地实现采集逻辑（示例参考仓库中的 <code>collectors.aliyun</code> 模块）。</li>
+        <li><strong>打包注册</strong>：将代码和 manifest 压缩成 ZIP，并通过 <code>POST /v1/plugins/upload</code> 提交。</li>
+        <li><strong>审核激活</strong>：调用 <code>POST /v1/plugins/{id}/activate</code>，确认 schedule、运行状态。</li>
+        <li><strong>自动调度</strong>：运行 <code>python scripts/run_scheduler.py</code> 周期执行激活的插件。</li>
+        <li><strong>数据入库/展示</strong>：插件内部调用 ingest API 写入公告表，首页、RSS、API 实时提供结构化信息。</li>
     </ol>
-    <p>如需自定义调度策略，可将调度脚本接入现有的任务编排系统（例如 Cron、Airflow 等）。</p>
+    <p>如需接入现有调度系统，可将调度脚本封装为 Cron/Airflow 任务执行。</p>
 
-    <h3>完整插件示例</h3>
-    <p>以下压缩包结构提供了一个最小可运行的采集器示例：</p>
-    <pre><code>aliyun-sample.zip
+    <h3>完整插件示例（基于阿里云实现）</h3>
+    <p>目录结构：</p>
+    <pre><code>aliyun.zip
 ├── manifest.json
-└── collector
+└── collectors
     ├── __init__.py
-    └── main.py</code></pre>
-    <p><code>manifest.json</code>:</p>
+    └── aliyun.py</code></pre>
+
+    <p><code>manifest.json</code></p>
     <pre><code>{
-  "slug": "aliyun_sample",
-  "name": "Aliyun Sample Collector",
-  "version": "0.1.0",
-  "entrypoint": "collector.main:run",
-  "description": "示例插件：抓取阿里云公告",
-  "schedule": "3600",
+  "slug": "aliyun_security",
+  "name": "Aliyun Bulletin Collector",
+  "version": "1.0.0",
+  "entrypoint": "collectors.aliyun:run",
+  "description": "采集阿里云安全公告",
+  "schedule": "3600",                         // 每 3600 秒运行一次
   "runtime": {
-    "ingest_url": "http://127.0.0.1:8000/v1/ingest/bulletins"
+    "ingest_url": "http://127.0.0.1:8000/v1/ingest/bulletins",
+    "token": "<可选 API Token>"
   }
 }</code></pre>
-    <p><code>collector/main.py</code>:</p>
-    <pre><code>from datetime import datetime, timezone
 
-from app.schemas import BulletinCreate, ContentInfo, SourceInfo
+    <p><code>collectors/aliyun.py</code>（核心片段）</p>
+    <pre><code>API_URL = "https://t.aliyun.com/abs/bulletin/bulletinQuery"
 
+@dataclass(slots=True)
+class FetchParams:
+    page_no: int = 1
+    page_size: int = 50
+    bulletin_type: str = "security"
 
-def run(ingest_url: str | None = None, token: str | None = None):
-    bulletin = BulletinCreate(
-        source=SourceInfo(
-            source_slug="aliyun_sample",
-            external_id="demo-1",
-            origin_url="https://www.aliyun.com/notice/demo",
-        ),
-        content=ContentInfo(
-            title="示例公告",
-            summary="这是一个示例插件生成的公告。",
-            published_at=datetime.now(timezone.utc),
-            language="zh",
-        ),
-        severity="info",
-        labels=["demo"],
-        topics=["official_bulletin"],
-        extra={"source": "aliyun"},
-    )
-    if ingest_url:
-        from requests import post
-
-        post(
-            ingest_url,
-            json=[bulletin.model_dump(mode="json")],
+class AliyunCollector:
+    def fetch(self, params: FetchParams) -> list[dict]:
+        response = requests.get(
+            API_URL,
+            params={"pageNo": params.page_no, "pageSize": params.page_size, "bulletinType": params.bulletin_type},
             timeout=30,
         )
-    return [bulletin.model_dump(mode="json")]
+        response.raise_for_status()
+        return response.json().get("data", {}).get("info", [])
+
+    def normalize(self, item: dict) -> BulletinCreate:
+        return BulletinCreate(
+            source=SourceInfo(
+                source_slug="aliyun_security",
+                external_id=str(item.get("id")),
+                origin_url=item.get("url"),
+            ),
+            content=ContentInfo(
+                title=item.get("titleFill") or item.get("title"),
+                summary=item.get("summary"),
+                body_text=item.get("content"),
+                published_at=_parse_publish_time(item.get("publishTime")),
+                language=item.get("language"),
+            ),
+            severity=item.get("securityLevel"),
+            labels=[value for value in [item.get("bulletinType"), item.get("bulletinType2")] if value],
+            topics=["official_bulletin"],
+            extra={
+                "bulletin_type": item.get("bulletinType"),
+                "impact_time": item.get("impactTime"),
+                "ext_info": json.loads(item.get("extInfo", "{}")),
+            },
+            raw=item,
+        )
+
+    def collect(self, params: FetchParams | None = None) -> list[BulletinCreate]:
+        params = params or FetchParams()
+        return [self.normalize(item) for item in self.fetch(params)]
+
+
+def run(ingest_url: str | None = None, token: str | None = None, **runtime):
+    collector = AliyunCollector()
+    bulletins = collector.collect()
+    if ingest_url:
+        payload = [b.model_dump(mode="json") for b in bulletins]
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        requests.post(ingest_url, json=payload, headers=headers, timeout=30)
+    return bulletins
 </code></pre>
+
+    <h3>上传步骤</h3>
+    <ol>
+        <li>压缩：<code>zip -r aliyun.zip manifest.json collectors/</code></li>
+        <li>Base64 编码：<code>base64 aliyun.zip &gt; payload.b64</code></li>
+        <li>调用接口：</li>
+    </ol>
+    <pre><code>curl -X POST http://127.0.0.1:8000/v1/plugins/upload \
+  -H "Content-Type: application/json" \
+  -d '{
+        "filename": "aliyun.zip",
+        "content": "$(cat payload.b64)"
+      }'</code></pre>
+
+    <h3>激活与调度</h3>
+    <p>上传成功后：</p>
+    <pre><code># 查看状态
+curl http://127.0.0.1:8000/v1/plugins
+
+# 激活（需 manifest 提供 schedule）
+curl -X POST http://127.0.0.1:8000/v1/plugins/1/activate -d '{"activate": true}' -H "Content-Type: application/json"
+
+# 运行调度器（可加入 Cron）
+python scripts/run_scheduler.py --ingest-url http://127.0.0.1:8000/v1/ingest/bulletins
+</code></pre>
+    <p>调度器会生成 <code>plugin_runs</code> 记录，包含开始/结束时间、状态、输出等信息。</p>
 </section>
 {% endblock %}

@@ -1,7 +1,7 @@
 """FastAPI application entrypoint."""
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app import crud
 from app.services import build_home_sections
 from app.database import Base, get_db_session, get_engine
-from fastapi.responses import HTMLResponse
+from app.schemas import BulletinOut
 
 from app.routers import bulletins, ingest, plugins
 
@@ -95,6 +95,22 @@ def create_app() -> FastAPI:
             request=request,
             name="login.html",
             context={"title": "登录"},
+        )
+
+    @app.get("/bulletins/{bulletin_id}", response_class=HTMLResponse, tags=["pages"])
+    def bulletin_detail(bulletin_id: int, request: Request, db: Session = Depends(get_db_session)) -> HTMLResponse:
+        bulletin = crud.get_bulletin(db, bulletin_id)
+        if not bulletin:
+            raise HTTPException(status_code=404, detail="Bulletin not found")
+        bulletin_data = BulletinOut.model_validate(bulletin)
+        return templates.TemplateResponse(
+            request=request,
+            name="detail.html",
+            context={
+                "title": bulletin_data.title,
+                "header": "情报详情",
+                "bulletin": bulletin_data,
+            },
         )
 
     return app

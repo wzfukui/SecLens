@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from importlib import import_module
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from zipfile import ZipFile
 
 from app.models import Plugin
@@ -101,6 +103,22 @@ def should_run(plugin: Plugin, *, now: datetime | None = None) -> bool:
     return plugin.next_run_at <= now
 
 
+def load_callable(plugin: Plugin) -> Callable[..., Any]:
+    module_path, _, attr = plugin.entrypoint.partition(":")
+    if not attr:
+        raise ValueError("Entrypoint must be in the form 'module:callable'")
+
+    plugin_dir = Path(plugin.upload_path)
+    if plugin_dir.exists() and str(plugin_dir) not in sys.path:  # type: ignore[name-defined]
+        sys.path.insert(0, str(plugin_dir))
+
+    module = import_module(module_path)
+    func = getattr(module, attr)
+    if not callable(func):
+        raise TypeError("Entrypoint is not callable")
+    return func
+
+
 __all__ = [
     "UPLOAD_ROOT",
     "PluginManifest",
@@ -108,4 +126,5 @@ __all__ = [
     "extract_plugin_archive",
     "compute_next_run",
     "should_run",
+    "load_callable",
 ]

@@ -7,8 +7,11 @@
     <title>{{ title or 'SecLens' }}</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 0; background: #f5f5f7; color: #1f1f24; }
-        header { background: #1f2933; color: #fff; padding: 1.5rem 2rem; }
-        header h1 { margin: 0; font-size: 1.5rem; }
+        header { background: #1f2933; color: #fff; padding: 1.8rem 2.4rem 1.2rem; display: grid; gap: 1rem; }
+        header .hero h1 { margin: 0; font-size: 1.6rem; }
+        .global-nav { display: flex; gap: 1.2rem; flex-wrap: wrap; }
+        .global-nav .nav-item { color: rgba(255,255,255,0.85); text-decoration: none; font-weight: 500; }
+        .global-nav .nav-item:hover { text-decoration: underline; }
         main { padding: 2.5rem 3rem; max-width: 1400px; width: 96%; margin: 0 auto; }
         .top-nav { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
         .top-nav a { padding: 0.45rem 1rem; border-radius: 999px; background: #e2e8f0; color: #1f2937; font-size: 0.95rem; font-weight: 500; }
@@ -43,12 +46,21 @@
         .bulletin-card h2 a { color: inherit; text-decoration: none; }
         .bulletin-card h2 a:hover { text-decoration: underline; }
         .meta { font-size: 0.85rem; color: #475569; margin-bottom: 0.75rem; display: flex; gap: 0.75rem; flex-wrap: wrap; }
+        .excerpt { font-size: 0.95rem; line-height: 1.6; }
+        .excerpt button.toggle-more { margin-top: 0.4rem; background: none; border: none; color: #2563eb; cursor: pointer; padding: 0; font-size: 0.9rem; }
+        .excerpt button.toggle-more:hover { text-decoration: underline; }
         .tags { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
         .tag { background: rgba(37, 99, 235, 0.12); border-radius: 999px; padding: 0.25rem 0.8rem; font-size: 0.75rem; color: #1e3a8a; }
-        .extra-list { margin-top: 1rem; display: grid; gap: 0.4rem; }
-        .extra-item { display: flex; gap: 0.5rem; font-size: 0.85rem; color: #334155; }
-        .extra-item span.label { font-weight: 600; color: #0f172a; min-width: 110px; }
+        .extra-details { margin-top: 1.25rem; }
+        .extra-details summary { cursor: pointer; font-weight: 600; color: #1e3a8a; }
+        .extra-table { margin: 0.75rem 0 0; display: grid; gap: 0.5rem; }
+        .extra-row { display: grid; grid-template-columns: 140px 1fr; gap: 0.5rem; font-size: 0.9rem; }
+        .extra-row dt { font-weight: 600; color: #0f172a; }
+        .extra-row dd { margin: 0; color: #334155; word-break: break-all; }
         .empty-state { color: #94a3b8; font-size: 0.95rem; margin: 2rem 0 0; text-align: center; }
+        .static-page { background: #fff; padding: 2.2rem; border-radius: 14px; box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12); display: grid; gap: 1.2rem; }
+        .static-page pre { background: #0f172a; color: #e2e8f0; padding: 1rem; border-radius: 10px; overflow-x: auto; }
+        .static-page code { font-family: "Fira Code", Consolas, monospace; }
         footer { padding: 1.5rem 2rem; text-align: center; color: #64748b; font-size: 0.85rem; }
         @media (max-width: 960px) {
             .layout { grid-template-columns: 1fr; }
@@ -63,10 +75,19 @@
 </head>
 <body>
 <header>
-    <h1>{{ header or 'SecLens 情报雷达' }}</h1>
-    <p style="margin-top: 0.5rem; color: rgba(255,255,255,0.75); max-width: 780px;">
-        聚合官方安全公告、厂商发布与热点资讯，支持分组浏览、过滤和 RSS 订阅，让你的安全情报体系更加高效。
-    </p>
+    <div class="hero">
+        <h1>{{ header or 'SecLens 情报雷达' }}</h1>
+        <p style="margin-top: 0.5rem; color: rgba(255,255,255,0.75); max-width: 780px;">
+            聚合官方安全公告、厂商发布与热点资讯，支持分组浏览、过滤和 RSS 订阅，让你的安全情报体系更加高效。
+        </p>
+    </div>
+    <nav class="global-nav">
+        <a href="/" class="nav-item">首页</a>
+        <a href="/docs" class="nav-item">文档</a>
+        <a href="/help" class="nav-item">帮助</a>
+        <a href="/about" class="nav-item">关于</a>
+        <a href="/login" class="nav-item">登录</a>
+    </nav>
 </header>
 <main>
     {% block content %}{% endblock %}

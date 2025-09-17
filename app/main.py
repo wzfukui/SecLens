@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from app import crud
 from app.services import build_home_sections
 from app.database import Base, get_db_session, get_engine
+from fastapi.responses import HTMLResponse
+
 from app.routers import bulletins, ingest, plugins
 
 
@@ -63,6 +65,38 @@ def create_app() -> FastAPI:
             "selected_source": selected_source,
         }
         return templates.TemplateResponse(request=request, name="index.html", context=context)
+    @app.get("/docs", response_class=HTMLResponse, tags=["pages"])
+    def docs_page(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request=request,
+            name="docs.html",
+            context={"title": "插件规范与示例"},
+        )
+
+    @app.get("/help", response_class=HTMLResponse, tags=["pages"])
+    def help_page(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request=request,
+            name="help.html",
+            context={"title": "平台工作流程"},
+        )
+
+    @app.get("/about", response_class=HTMLResponse, tags=["pages"])
+    def about_page(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request=request,
+            name="about.html",
+            context={"title": "关于 SecLens"},
+        )
+
+    @app.get("/login", response_class=HTMLResponse, tags=["pages"])
+    def login_page(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            context={"title": "登录"},
+        )
+
     return app
 
 

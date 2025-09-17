@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="static-page">
+    <h2>平台工作流程</h2>
+    <ol>
+        <li>开发者打包插件（含 manifest 与代码）并通过 <code>/v1/plugins/upload</code> 上传；</li>
+        <li>管理员在后台激活插件，系统生成首次运行时间；</li>
+        <li>调度脚本 <code>scripts/run_scheduler.py</code> 周期执行，自动导入并运行插件入口函数；</li>
+        <li>插件运行结果通过 ingest API 写入公告表，并记录运行日志；</li>
+        <li>前端首页、RSS、API 会实时读取最新的结构化数据。</li>
+    </ol>
+    <p>如需自定义调度策略，可将调度脚本接入现有的任务编排系统（例如 Cron、Airflow 等）。</p>
+
+    <h3>完整插件示例</h3>
+    <p>以下压缩包结构提供了一个最小可运行的采集器示例：</p>
+    <pre><code>aliyun-sample.zip
+├── manifest.json
+└── collector
+    ├── __init__.py
+    └── main.py</code></pre>
+    <p><code>manifest.json</code>:</p>
+    <pre><code>{
+  "slug": "aliyun_sample",
+  "name": "Aliyun Sample Collector",
+  "version": "0.1.0",
+  "entrypoint": "collector.main:run",
+  "description": "示例插件：抓取阿里云公告",
+  "schedule": "3600",
+  "runtime": {
+    "ingest_url": "http://127.0.0.1:8000/v1/ingest/bulletins"
+  }
+}</code></pre>
+    <p><code>collector/main.py</code>:</p>
+    <pre><code>from datetime import datetime, timezone
+
+from app.schemas import BulletinCreate, ContentInfo, SourceInfo
+
+
+def run(ingest_url: str | None = None, token: str | None = None):
+    bulletin = BulletinCreate(
+        source=SourceInfo(
+            source_slug="aliyun_sample",
+            external_id="demo-1",
+            origin_url="https://www.aliyun.com/notice/demo",
+        ),
+        content=ContentInfo(
+            title="示例公告",
+            summary="这是一个示例插件生成的公告。",
+            published_at=datetime.now(timezone.utc),
+            language="zh",
+        ),
+        severity="info",
+        labels=["demo"],
+        topics=["official_bulletin"],
+        extra={"source": "aliyun"},
+    )
+    if ingest_url:
+        from requests import post
+
+        post(
+            ingest_url,
+            json=[bulletin.model_dump(mode="json")],
+            timeout=30,
+        )
+    return [bulletin.model_dump(mode="json")]
+</code></pre>
+</section>
+{% endblock %}

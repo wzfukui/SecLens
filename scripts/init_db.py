@@ -1,5 +1,12 @@
 """Utility script to create database tables for the SecLens MVP."""
+import sys
+from pathlib import Path
+
 from sqlalchemy import inspect, text
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from app.database import Base, get_engine
 from app.models import Plugin, PluginRun

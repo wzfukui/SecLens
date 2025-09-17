@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title or 'SecLens' }}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 0; background: #f5f5f7; color: #1f1f24; }
+        header { background: #1f2933; color: #fff; padding: 1.5rem 2rem; }
+        header h1 { margin: 0; font-size: 1.5rem; }
+        main { padding: 2.5rem 3rem; max-width: 1400px; width: 96%; margin: 0 auto; }
+        .top-nav { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .top-nav a { padding: 0.45rem 1rem; border-radius: 999px; background: #e2e8f0; color: #1f2937; font-size: 0.95rem; font-weight: 500; }
+        .top-nav a.active { background: #1d4ed8; color: #fff; box-shadow: 0 8px 20px rgba(29, 78, 216, 0.25); }
+        .layout { display: grid; grid-template-columns: minmax(320px, 360px) 1fr; gap: 2.5rem; }
+        .sources-panel { background: #fff; border-radius: 12px; box-shadow: 0 12px 24px rgba(15, 23, 42, 0.1); padding: 1.5rem; height: fit-content; }
+        .sources-panel h2 { margin: 0 0 1rem; font-size: 1.1rem; }
+        .source-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+        .source-list a { display: flex; justify-content: space-between; align-items: baseline; padding: 0.75rem 0.85rem; border-radius: 10px; background: #f8fafc; color: #1e293b; box-shadow: inset 0 0 0 1px #e2e8f0; }
+        .source-list a.active { background: #1e293b; color: #f8fafc; box-shadow: 0 10px 22px rgba(30, 41, 59, 0.3); }
+        .source-list span.count { font-size: 0.8rem; color: inherit; }
+        .content-panel { display: grid; gap: 1.2rem; }
+        .section-header { margin-bottom: 0.5rem; display: flex; align-items: center; gap: 1rem; }
+        .section-header h2 { margin: 0; font-size: 1.35rem; }
+        .section-header p { margin: 0.35rem 0 0; color: #64748b; flex: 1; }
+        .section-actions { margin-left: auto; display: flex; gap: 0.5rem; }
+        .rss-button { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.8rem; border-radius: 999px; background: rgba(239, 68, 68, 0.15); color: #b91c1c; font-size: 0.85rem; border: none; cursor: pointer; transition: background 0.2s ease; }
+        .rss-button svg { width: 16px; height: 16px; }
+        .rss-button:hover { background: rgba(239, 68, 68, 0.25); }
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); display: none; align-items: center; justify-content: center; z-index: 999; }
+        .modal { background: #fff; border-radius: 12px; padding: 2rem; max-width: 400px; width: 90%; box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25); text-align: center; }
+        .modal h3 { margin: 0 0 1rem; font-size: 1.1rem; }
+        .modal p { color: #475569; margin-bottom: 1.5rem; }
+        .modal .rss-link { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.75rem; word-break: break-all; margin-bottom: 1.5rem; font-size: 0.9rem; }
+        .modal-buttons { display: flex; gap: 0.75rem; justify-content: center; }
+        .btn { padding: 0.55rem 1.2rem; border-radius: 8px; border: none; cursor: pointer; font-size: 0.9rem; }
+        .btn-primary { background: #1d4ed8; color: #fff; }
+        .btn-secondary { background: #e2e8f0; color: #1f2937; }
+        .bulletin-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
+        .bulletin-card { background: #fff; border-radius: 14px; padding: 1.6rem; box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12); border: 1px solid rgba(148, 163, 184, 0.15); }
+        .bulletin-card h2 { margin: 0 0 0.5rem; font-size: 1.2rem; }
+        .bulletin-card h2 a { color: inherit; text-decoration: none; }
+        .bulletin-card h2 a:hover { text-decoration: underline; }
+        .meta { font-size: 0.85rem; color: #475569; margin-bottom: 0.75rem; display: flex; gap: 0.75rem; flex-wrap: wrap; }
+        .tags { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+        .tag { background: rgba(37, 99, 235, 0.12); border-radius: 999px; padding: 0.25rem 0.8rem; font-size: 0.75rem; color: #1e3a8a; }
+        .extra-list { margin-top: 1rem; display: grid; gap: 0.4rem; }
+        .extra-item { display: flex; gap: 0.5rem; font-size: 0.85rem; color: #334155; }
+        .extra-item span.label { font-weight: 600; color: #0f172a; min-width: 110px; }
+        .empty-state { color: #94a3b8; font-size: 0.95rem; margin: 2rem 0 0; text-align: center; }
+        footer { padding: 1.5rem 2rem; text-align: center; color: #64748b; font-size: 0.85rem; }
+        @media (max-width: 960px) {
+            .layout { grid-template-columns: 1fr; }
+            .sources-panel { position: relative; order: 2; }
+            .content-panel { order: 1; }
+        }
+        @media (max-width: 640px) {
+            main { padding: 1.5rem; }
+            .bulletin-card { padding: 1.25rem; border-radius: 10px; box-shadow: none; border: 1px solid #e2e8f0; }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>{{ header or 'SecLens 情报雷达' }}</h1>
+    <p style="margin-top: 0.5rem; color: rgba(255,255,255,0.75); max-width: 780px;">
+        聚合官方安全公告、厂商发布与热点资讯，支持分组浏览、过滤和 RSS 订阅，让你的安全情报体系更加高效。
+    </p>
+</header>
+<main>
+    {% block content %}{% endblock %}
+</main>
+<footer>
+    SecLens MVP · <a href="/v1/bulletins/rss">RSS</a> · <a href="/docs">API Docs</a>
+</footer>
+</body>
+</html>

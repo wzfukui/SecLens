@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block content %}
+<nav class="top-nav">
+    {% for section in sections %}
+        <a href="?section={{ section.slug }}" class="{% if selected_section and selected_section.slug == section.slug %}active{% endif %}">{{ section.title }}</a>
+    {% endfor %}
+</nav>
+
+<div class="layout">
+    <aside class="sources-panel">
+        <h2>来源</h2>
+        {% if selected_section and selected_section.sources %}
+            <ul class="source-list">
+                {% for source in selected_section.sources %}
+                    <li>
+                        <a href="?section={{ selected_section.slug }}&source={{ source.slug }}" class="{% if selected_source and selected_source.slug == source.slug %}active{% endif %}">
+                            <span>{{ source.title }}</span>
+                            <span class="count">{{ source.total }}</span>
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="empty-state">当前分组暂无数据源</p>
+        {% endif %}
+    </aside>
+
+    <section class="content-panel">
+        {% if selected_section %}
+            <div class="section-header">
+                <div>
+                    <h2>{{ selected_section.title }}</h2>
+                    {% if selected_section.description %}
+                        <p>{{ selected_section.description }}</p>
+                    {% endif %}
+                </div>
+                {% if selected_source %}
+                    <div class="section-actions">
+                        <button class="rss-button" data-source="{{ selected_source.title }}" data-slug="{{ selected_source.slug }}">
+                            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M3 3a1 1 0 011-1c7.18 0 13 5.82 13 13a1 1 0 11-2 0A10.99 10.99 0 004 4a1 1 0 01-1-1zm0 6a1 1 0 011-1 7 7 0 017 7 1 1 0 11-2 0 5 5 0 00-5-5 1 1 0 01-1-1zm2 7a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            RSS 订阅
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        {% if selected_source and selected_source.items %}
+            <ul class="bulletin-list">
+                {% for bulletin in selected_source.items %}
+                    <li class="bulletin-card">
+                        <h2><a href="{{ bulletin.origin_url or '#' }}" target="_blank" rel="noopener noreferrer">{{ bulletin.title }}</a></h2>
+                        <div class="meta">
+                            {% if bulletin.published_at %}
+                                发布时间 {{ bulletin.published_at.strftime('%Y-%m-%d %H:%M UTC') }}
+                            {% endif %}
+                            {% if bulletin.fetched_at %}
+                                抓取时间 {{ bulletin.fetched_at.strftime('%Y-%m-%d %H:%M UTC') }}
+                            {% endif %}
+                        </div>
+                        {% if bulletin.summary %}
+                            <p>{{ bulletin.summary }}</p>
+                        {% elif bulletin.body_text %}
+                            <p>{{ bulletin.body_text[:360] }}{% if bulletin.body_text|length > 360 %}…{% endif %}</p>
+                        {% endif %}
+                        {% if bulletin.extra %}
+                            {% set extra_items = bulletin.extra.items() | list %}
+                            {% if extra_items %}
+                                <div class="extra-list">
+                                    {% for key, value in extra_items[:4] %}
+                                        <div class="extra-item">
+                                            <span class="label">{{ key.replace('_', ' ') }}</span>
+                                            <span>{{ value | tojson }}</span>
+                                        </div>
+                                    {% endfor %}
+                                    {% if extra_items|length > 4 %}
+                                        <div class="extra-item"><span class="label">更多</span><span>查看详情页或导出获取全部字段</span></div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        {% endif %}
+                        <div class="tags">
+                            <span class="tag">{{ selected_source.title }}</span>
+                            {% for label in bulletin.labels or [] %}
+                                <span class="tag">{{ label }}</span>
+                            {% endfor %}
+                            {% for topic in bulletin.topics or [] %}
+                                <span class="tag">{{ topic }}</span>
+                            {% endfor %}
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="empty-state">点击左侧来源查看对应资讯</p>
+        {% endif %}
+    </section>
+</div>
+
+<div class="modal-backdrop" id="rss-modal">
+    <div class="modal">
+        <h3>订阅来源 RSS</h3>
+        <p id="rss-modal-desc"></p>
+        <div class="rss-link" id="rss-modal-link"></div>
+        <div class="modal-buttons">
+            <button class="btn btn-primary" id="rss-copy">复制链接</button>
+            <button class="btn btn-secondary" id="rss-close">关闭</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const modal = document.getElementById('rss-modal');
+    const modalDesc = document.getElementById('rss-modal-desc');
+    const modalLink = document.getElementById('rss-modal-link');
+    const copyBtn = document.getElementById('rss-copy');
+    const closeBtn = document.getElementById('rss-close');
+
+    document.querySelectorAll('.rss-button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const sourceTitle = btn.dataset.source;
+            const slug = btn.dataset.slug;
+            const origin = window.location.origin;
+            const url = `${origin}/v1/bulletins/rss?source_slug=${slug}`;
+            modalDesc.textContent = `${sourceTitle} RSS 订阅地址`;
+            modalLink.textContent = url;
+            modal.style.display = 'flex';
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(url).then(() => {
+                    copyBtn.textContent = '已复制';
+                    setTimeout(() => (copyBtn.textContent = '复制链接'), 1500);
+                });
+            };
+        });
+    });
+
+    const closeModal = () => {
+        modal.style.display = 'none';
+        copyBtn.textContent = '复制链接';
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            closeModal();
+        }
+    });
+</script>
+{% endblock %}

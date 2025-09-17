@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app import crud
 from app.services import build_home_sections
+from scripts.scheduler_service import start_scheduler
 from app.database import Base, get_db_session, get_engine
 from app.schemas import BulletinOut
 
@@ -21,6 +22,7 @@ TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 def create_app() -> FastAPI:
     app = FastAPI(title="SecLens Ingest API", version="0.1.0")
     templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
+    start_scheduler(app)
 
     @app.on_event("startup")
     def startup_event() -> None:

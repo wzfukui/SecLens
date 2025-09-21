@@ -1,0 +1,40 @@
+# 本文档收集了SecLens项目所有插件所用到的网络安全资讯来源
+
+# 安全公告
+- Security Bulletins
+  - Huawei Security Advisory
+    Description: Huawei Security Advisory
+    Home: https://securitybulletin.huawei.cn/digitalpower/en/security-advisory
+  - Alibaba Cloud Security Notice
+    Description: Alibaba Cloud Security Notice
+    Home: https://www.aliyun.com/rss/notice/zh.xml
+    Remark: <category>安全</category>
+
+# 安全新闻
+- Security News
+  - The Hacker News
+    Description: \#1 Trusted Source for Cybersecurity News
+    Home: https://thehackernews.com/
+    Rss: https://feeds.feedburner.com/TheHackersNews
+  - FreeBuf
+    Description: FreeBuf网络安全行业门户
+    Home: https://freebuf.com/
+    Rss: https://www.freebuf.com/feed
+
+
+# 黑客利用工具
+- Exploits
+  - Exploit DB
+    Description: Exploits for Penetration Testers, Researchers, and Ethical Hackers
+    Home: https://www.exploit-db.com
+    Rss: https://www.exploit-db.com/rss.xml
+
+# 技术团队/博客
+- Tech Blog
+  - Google Online Security Blog
+    Home: https://security.googleblog.com
+    Atom: http://feeds.feedburner.com/GoogleOnlineSecurityBlog
+
+# KOL
+- Security KOL
+  - XXX

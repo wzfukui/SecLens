@@ -27,6 +27,11 @@
   "entrypoint": "collectors.aliyun:run",
   "description": "采集阿里云安全公告",
   "schedule": "3600",                         // 每 3600 秒运行一次
+  "source": {
+    "publisher": "Alibaba Cloud",
+    "homepage": "https://t.aliyun.com",
+    "feed_url": "https://t.aliyun.com/abs/bulletin/bulletinQuery"
+  },
   "runtime": {
     "ingest_url": "http://127.0.0.1:8000/v1/ingest/bulletins",
     "token": "<可选 API Token>"

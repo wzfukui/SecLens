@@ -1,0 +1,14 @@
+{
+  "slug": "ubuntu_security",
+  "name": "Ubuntu Security Notice Collector",
+  "version": "1.0.1",
+  "entrypoint": "collector:run",
+  "description": "Fetches Ubuntu USN advisories via RSS and JSON endpoints.",
+  "schedule": "3600",
+  "source": {
+    "publisher": "Canonical",
+    "homepage": "https://ubuntu.com/security/notices",
+    "feed_url": "https://ubuntu.com/security/notices/rss.xml"
+  },
+  "runtime": {}
+}

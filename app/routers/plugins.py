@@ -49,6 +49,7 @@ async def upload_plugin(
             "entrypoint": manifest.entrypoint,
             "description": manifest.description,
             "schedule": manifest.schedule,
+            "source": manifest.source,
             "runtime": manifest.runtime,
         },
         upload_path=str(target_dir),

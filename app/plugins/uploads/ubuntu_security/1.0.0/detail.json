@@ -1,0 +1,393 @@
+{
+    "id": "USN-7758-4",
+    "title": " Linux kernel (Oracle) vulnerability",
+    "summary": "The system could be made to crash or run programs as an administrator.\n",
+    "instructions": "After a standard system update you need to reboot your computer to make\nall the necessary changes.\n\nATTENTION: Due to an unavoidable ABI change the kernel updates have\nbeen given a new version number, which requires you to recompile and\nreinstall all third party kernel modules you might have installed.\nUnless you manually uninstalled the standard kernel metapackages\n(e.g. linux-generic, linux-generic-lts-RELEASE, linux-virtual,\nlinux-powerpc), a standard system upgrade will automatically perform\nthis as well.\n",
+    "references": [
+        "https://launchpad.net/bugs/2121515"
+    ],
+    "published": "2025-09-19T10:20:30.974124",
+    "description": "It was discovered that the AF_UNIX socket garbage collection implementation\nin Ubuntu Noble's 6.8 kernel did not properly handle out-of-band (OOB)\nmessages, leading to a use-after-free vulnerability. An attacker could use\nthis to cause a denial of service (system crash) or possibly execute\narbitrary code.\n",
+    "is_hidden": false,
+    "release_packages": {
+        "jammy": [
+            {
+                "name": "linux-oracle-6.8",
+                "version": "6.8.0-1035.36~22.04.1",
+                "description": "Linux kernel for Oracle Cloud systems",
+                "is_source": true
+            },
+            {
+                "name": "linux-buildinfo-6.8.0-1035-oracle",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-buildinfo-6.8.0-1035-oracle-64k",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-headers-6.8.0-1035-oracle",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-headers-6.8.0-1035-oracle-64k",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-headers-oracle",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-headers-oracle-6.8",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-headers-oracle-64k",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-headers-oracle-64k-6.8",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-headers-oracle-64k-edge",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-headers-oracle-edge",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-image-6.8.0-1035-oracle",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": true,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-signed-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-signed-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-image-6.8.0-1035-oracle-64k",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": true,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-signed-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-signed-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-image-oracle",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": true,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-image-oracle-6.8",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": true,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-image-oracle-64k",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": true,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-image-oracle-64k-6.8",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": true,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-image-oracle-64k-edge",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-image-oracle-edge",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-image-unsigned-6.8.0-1035-oracle",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-image-unsigned-6.8.0-1035-oracle-64k",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-modules-6.8.0-1035-oracle",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-modules-6.8.0-1035-oracle-64k",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-modules-extra-6.8.0-1035-oracle",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-modules-extra-6.8.0-1035-oracle-64k",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-oracle",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-oracle-6.8",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-oracle-6.8-headers-6.8.0-1035",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-oracle-6.8-tools-6.8.0-1035",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-oracle-64k",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-oracle-64k-6.8",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-oracle-64k-edge",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-oracle-edge",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-tools-6.8.0-1035-oracle",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-tools-6.8.0-1035-oracle-64k",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-tools-oracle",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-tools-oracle-6.8",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-tools-oracle-64k",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-tools-oracle-64k-6.8",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-tools-oracle-64k-edge",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            },
+            {
+                "name": "linux-tools-oracle-edge",
+                "version": "6.8.0-1035.36~22.04.1",
+                "is_source": false,
+                "is_visible": false,
+                "source_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8",
+                "version_link": "https://launchpad.net/ubuntu/+source/linux-meta-oracle-6.8/6.8.0-1035.36~22.04.1",
+                "pocket": "security"
+            }
+        ]
+    },
+    "type": "USN",
+    "cves": [],
+    "cves_ids": [],
+    "releases": [
+        {
+            "codename": "jammy",
+            "version": "22.04",
+            "support_tag": "LTS"
+        }
+    ],
+    "related_notices": []
+}

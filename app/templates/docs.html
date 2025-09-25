@@ -4,13 +4,18 @@
     <h2>插件规范与提交示例</h2>
     <p>每个插件应包含 <code>manifest.json</code> 与至少一个 Python 包/模块，入口函数负责归一化数据并调用 ingest API。</p>
     <h3>manifest.json 示例</h3>
-    <pre><code>{
+<pre><code>{
   "slug": "aliyun",
   "name": "Aliyun Bulletin Collector",
   "version": "1.0.0",
   "entrypoint": "collector.main:run",
   "description": "官方安全公告采集器",
   "schedule": "3600",  // 以秒为单位的运行间隔
+  "source": {
+    "publisher": "Alibaba Cloud",
+    "homepage": "https://t.aliyun.com",
+    "feed_url": "https://t.aliyun.com/abs/bulletin/bulletinQuery"
+  },
   "runtime": {
     "ingest_url": "https://your-host/v1/ingest/bulletins",
     "token": "<api-token>"

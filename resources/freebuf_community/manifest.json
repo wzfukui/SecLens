@@ -1,0 +1,14 @@
+{
+  "slug": "freebuf_community",
+  "name": "FreeBuf Community Collector",
+  "version": "1.0.0",
+  "entrypoint": "collector:run",
+  "description": "Collects security community articles from FreeBuf RSS feed.",
+  "schedule": "1800",
+  "source": {
+    "publisher": "FreeBuf",
+    "homepage": "https://www.freebuf.com/",
+    "feed_url": "https://www.freebuf.com/feed"
+  },
+  "runtime": {}
+}

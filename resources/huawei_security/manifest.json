@@ -1,0 +1,14 @@
+{
+  "slug": "huawei_security",
+  "name": "Huawei Security Advisory Collector",
+  "version": "1.0.0",
+  "entrypoint": "collector:run",
+  "description": "Fetches Huawei enterprise security advisories via public API.",
+  "schedule": "3600",
+  "source": {
+    "publisher": "Huawei",
+    "homepage": "https://securitybulletin.huawei.com/enterprise/en/security-advisory",
+    "api_url": "https://securitybulletin.huawei.com/vdmsapi/services/vdmsapi/rest/v1/enterprise/advisories"
+  },
+  "runtime": {}
+}

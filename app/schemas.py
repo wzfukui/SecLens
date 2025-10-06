@@ -122,6 +122,15 @@ class PluginUploadRequest(BaseModel):
     content: str  # base64-encoded archive
 
 
+class PluginRunInfo(BaseModel):
+    id: int
+    plugin_id: int
+    plugin_slug: str
+    status: str
+    message: str | None
+    started_at: datetime
+    finished_at: datetime | None
+
 __all__ = [
     "SourceInfo",
     "ContentInfo",
@@ -136,4 +145,5 @@ __all__ = [
     "PluginListResponse",
     "PluginActivateRequest",
     "PluginUploadRequest",
+    "PluginRunInfo",
 ]

@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 from typing import Optional, Tuple
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, select, String
 from sqlalchemy.orm import Session
 
 from app import models
@@ -85,10 +85,16 @@ def list_bulletins(
 
     if source_slug:
         filters.append(models.Bulletin.source_slug == source_slug)
+    bind = session.get_bind()
+    dialect = bind.dialect.name if bind is not None else ""
+
+    def _like_pattern(value: str) -> str:
+        return f'%"{value}"%'
+
     if label:
-        filters.append(models.Bulletin.labels.contains([label]))
+        filters.append(models.Bulletin.labels.cast(String).like(_like_pattern(label)))
     if topic:
-        filters.append(models.Bulletin.topics.contains([topic]))
+        filters.append(models.Bulletin.topics.cast(String).like(_like_pattern(topic)))
     if since:
         filters.append(models.Bulletin.published_at >= since)
     if until:

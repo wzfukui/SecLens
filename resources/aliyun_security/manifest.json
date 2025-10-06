@@ -1,0 +1,14 @@
+{
+  "slug": "aliyun_security",
+  "name": "Aliyun Security Bulletin Collector",
+  "version": "1.0.0",
+  "entrypoint": "collector:run",
+  "description": "Fetches security advisories from Aliyun bulletin API.",
+  "schedule": "3600",
+  "source": {
+    "publisher": "Alibaba Cloud",
+    "homepage": "https://t.aliyun.com/",
+    "api_url": "https://t.aliyun.com/abs/bulletin/bulletinQuery"
+  },
+  "runtime": {}
+}

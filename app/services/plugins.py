@@ -75,11 +75,18 @@ def extract_plugin_archive(data: bytes) -> tuple[PluginManifest, Path]:
     return manifest, target_dir
 
 
-def compute_next_run(schedule: str | None, reference: datetime | None = None) -> datetime | None:
+def compute_next_run(
+    schedule: str | None,
+    reference: datetime | None = None,
+    *,
+    immediate: bool = False,
+) -> datetime | None:
     if not schedule:
         return None
     reference = reference or datetime.now(timezone.utc)
     schedule = schedule.strip()
+    if immediate:
+        return reference
     try:
         interval = int(schedule)
         return reference + timedelta(seconds=interval)

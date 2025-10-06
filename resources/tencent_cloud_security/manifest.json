@@ -1,0 +1,14 @@
+{
+  "slug": "tencent_cloud_security",
+  "name": "Tencent Cloud Security Announcement Collector",
+  "version": "1.0.0",
+  "entrypoint": "collector:run",
+  "description": "Fetches Tencent Cloud security announcements from official portal.",
+  "schedule": "3600",
+  "source": {
+    "publisher": "Tencent Cloud",
+    "homepage": "https://cloud.tencent.com/announce",
+    "feed_url": "https://cloud.tencent.com/announce/?categorys=21"
+  },
+  "runtime": {}
+}

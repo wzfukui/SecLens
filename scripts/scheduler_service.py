@@ -11,6 +11,12 @@ from fastapi import FastAPI
 from app.database import get_session_factory
 from app.models import Plugin, PluginRun
 from app.services.plugins import load_callable, should_run, compute_next_run
+from app.config import get_settings
+
+try:
+    import requests
+except ImportError:  # pragma: no cover
+    requests = None  # type: ignore
 
 LOGGER = logging.getLogger(__name__)
 CHECK_INTERVAL = 30  # seconds
@@ -18,6 +24,8 @@ CHECK_INTERVAL = 30  # seconds
 
 def run_plugins_once():
     Session = get_session_factory()
+    settings = get_settings()
+    ingest_url = settings.ingest_base_url.rstrip("/") + "/v1/ingest/bulletins"
     with Session() as session:
         plugins = session.query(Plugin).all()
         for plugin in plugins:
@@ -31,7 +39,20 @@ def run_plugins_once():
 
             try:
                 func = load_callable(plugin)
-                func()
+                runtime_args = {}
+                if plugin.manifest and isinstance(plugin.manifest, dict):
+                    runtime_args.update(plugin.manifest.get("runtime", {}))
+
+                if "ingest_url" not in runtime_args:
+                    runtime_args["ingest_url"] = ingest_url
+
+                result = func(**runtime_args)
+
+                if requests and isinstance(result, tuple):
+                    bulletins, _response = result
+                    if bulletins and "ingest_url" not in runtime_args:
+                        payload = [item.model_dump(mode="json") for item in bulletins]
+                        requests.post(ingest_url, json=payload, timeout=30)
                 run.status = "success"
                 run.message = "Completed"
             except Exception as exc:  # pylint: disable=broad-except

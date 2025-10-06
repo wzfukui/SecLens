@@ -130,3 +130,21 @@
 - **SSL 相关错误**：本地开发可在数据库 URL 加上 `?sslmode=disable`。
 
 准备完成后，你就可以开始实现 Ingest API、编写采集插件并进行调试了。如果过程中遇到特定问题，可以把报错贴出来我再协助排查。
+
+## 手动触发全部采集插件
+
+本地开发环境可使用内置调度函数一次性运行所有已激活插件，并立即写入采集结果：
+
+```bash
+source .venv/bin/activate
+python - <<'PY'
+from scripts.scheduler_service import run_plugins_once
+run_plugins_once()
+PY
+```
+
+调度完成后，可通过以下方式确认插件执行情况：
+
+- 查询 `/dashboard/plugins` 看板的“采集总量”“上次运行”“下一次运行”字段。
+- 查看数据库 `plugin_runs` 表记录（或运行 `python scripts/debug_print_plugin_runs.py` 自行编写脚本）获取成功/失败状态与错误信息。
+- 调用 `GET /v1/bulletins?source_slug=<slug>` 验证是否有新公告写入。

@@ -144,9 +144,11 @@ def _build_plugin_sections(db: Session, limit_per_source: int) -> list[HomeSecti
     return sections
 
 
-def _build_static_sections(db: Session, limit_per_source: int) -> list[HomeSection]:
+def _build_static_sections(db: Session, limit_per_source: int, existing_slugs: set[str]) -> list[HomeSection]:
     sections: list[HomeSection] = []
     for section_cfg in HOME_SECTIONS:
+        if section_cfg["slug"] in existing_slugs:
+            continue
         sources_cfg: list[dict[str, Any]] = section_cfg.get("topics", [])  # type: ignore[assignment]
         if not sources_cfg:
             sources_cfg = section_cfg.get("labels", [])  # type: ignore[assignment]
@@ -182,8 +184,10 @@ def build_home_sections(db: Session, *, limit_per_source: int = 5) -> list[HomeS
     """Aggregate bulletins into homepage sections driven by plugin metadata and static topics."""
 
     sections: list[HomeSection] = []
-    sections.extend(_build_plugin_sections(db, limit_per_source))
-    sections.extend(_build_static_sections(db, limit_per_source))
+    plugin_sections = _build_plugin_sections(db, limit_per_source)
+    sections.extend(plugin_sections)
+    existing = {section.slug for section in plugin_sections}
+    sections.extend(_build_static_sections(db, limit_per_source, existing))
     return sections
 
 

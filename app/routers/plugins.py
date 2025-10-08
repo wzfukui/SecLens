@@ -98,6 +98,7 @@ def _manifest_payload(manifest: PluginManifest) -> dict[str, object]:
         "schedule": manifest.schedule,
         "source": manifest.source,
         "runtime": manifest.runtime,
+        "ui": manifest.ui,
     }
 
 

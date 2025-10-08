@@ -10,5 +10,13 @@
     "homepage": "https://securitybulletin.huawei.com/enterprise/en/security-advisory",
     "api_url": "https://securitybulletin.huawei.com/vdmsapi/services/vdmsapi/rest/v1/enterprise/advisories"
   },
-  "runtime": {}
+  "runtime": {},
+  "ui": {
+    "group_slug": "vulnerability_alerts",
+    "group_title": "漏洞预警",
+    "group_description": "官方与权威渠道发布的安全漏洞与补丁通知。",
+    "group_order": 10,
+    "source_title": "华为安全公告",
+    "source_order": 20
+  }
 }

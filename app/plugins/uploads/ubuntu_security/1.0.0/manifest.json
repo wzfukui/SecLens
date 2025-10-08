@@ -5,5 +5,18 @@
   "entrypoint": "collector:run",
   "description": "Fetches Ubuntu USN advisories via RSS and JSON endpoints.",
   "schedule": "3600",
-  "runtime": {}
+  "source": {
+    "publisher": "Canonical",
+    "homepage": "https://ubuntu.com/security/notices",
+    "feed_url": "https://ubuntu.com/security/notices/rss.xml"
+  },
+  "runtime": {},
+  "ui": {
+    "group_slug": "vulnerability_alerts",
+    "group_title": "漏洞预警",
+    "group_description": "官方与权威渠道发布的安全漏洞与补丁通知。",
+    "group_order": 10,
+    "source_title": "Ubuntu 安全公告",
+    "source_order": 40
+  }
 }

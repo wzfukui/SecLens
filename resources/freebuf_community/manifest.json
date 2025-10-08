@@ -10,5 +10,13 @@
     "homepage": "https://www.freebuf.com/",
     "feed_url": "https://www.freebuf.com/feed"
   },
-  "runtime": {}
+  "runtime": {},
+  "ui": {
+    "group_slug": "community_updates",
+    "group_title": "社区更新",
+    "group_description": "社区、开源项目或团队的安全实践分享。",
+    "group_order": 30,
+    "source_title": "FreeBuf 社区",
+    "source_order": 10
+  }
 }

@@ -18,6 +18,7 @@ from resources.aliyun_security.collector import (
 )
 from resources.exploit_db.collector import run as run_exploit_db
 from resources.freebuf_community.collector import run as run_freebuf
+from resources.oracle_security_alert.collector import run as run_oracle
 from resources.huawei_security.collector import (
     FetchParams as HuaweiSecurityFetchParams,
     run as run_huawei_security,
@@ -39,6 +40,7 @@ def parse_args() -> argparse.Namespace:
             "tencent_cloud",
             "exploit_db",
             "ubuntu_security",
+            "oracle_security_alert",
         ],
         required=True,
         help="Collector source slug",
@@ -110,6 +112,8 @@ def run_collector(args: argparse.Namespace) -> tuple[list[BulletinCreate], dict 
         return run_exploit_db(args.ingest_url, args.token, limit=args.limit, force=args.force)
     if args.source == "ubuntu_security":
         return run_ubuntu_security(args.ingest_url, args.token, limit=args.limit, force=args.force)
+    if args.source == "oracle_security_alert":
+        return run_oracle(args.ingest_url, args.token, limit=args.limit, force=args.force)
     raise ValueError(f"Unsupported source: {args.source}")
 
 

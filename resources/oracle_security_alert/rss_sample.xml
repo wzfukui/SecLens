@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Oracle Security Alerts</title>
+    <link>https://www.oracle.com/security-alerts/</link>
+    <description>Security alerts issued by Oracle.</description>
+    <item>
+      <title>Oracle Critical Patch Update Advisory - October 2025</title>
+      <link>https://www.oracle.com/security-alerts/cpuoct2025.html</link>
+      <description>Oracle Critical Patch Update Advisory - October 2025</description>
+      <pubDate>Tue, 14 Oct 2025 18:00:00 GMT</pubDate>
+      <guid>cpuoct2025</guid>
+    </item>
+    <item>
+      <title>Oracle Security Alert Advisory - CVE-2025-12345</title>
+      <link>https://www.oracle.com/security-alerts/alert-cve-2025-12345.html</link>
+      <description>Oracle Security Alert Advisory addressing CVE-2025-12345</description>
+      <pubDate>Mon, 01 Sep 2025 12:00:00 GMT</pubDate>
+      <guid>alert-2025-12345</guid>
+    </item>
+  </channel>
+</rss>

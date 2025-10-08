@@ -33,7 +33,7 @@
                 {% for plugin in plugins %}
                 <tr class="status-{{ plugin.status }}">
                     <td>
-                        <strong>{{ plugin.name }}</strong>
+                        <strong><a href="/dashboard/plugins/{{ plugin.slug }}">{{ plugin.name }}</a></strong>
                         <div class="slug">{{ plugin.slug }}</div>
                     </td>
                     <td>{{ plugin.version }}</td>

@@ -214,7 +214,7 @@ def create_app() -> FastAPI:
                     "total_items": collected,
                     "group_title": plugin.group_title,
                 }
-            )
+        )
 
         summary = [
             {"label": "总插件数", "value": len(plugin_rows)},
@@ -235,12 +235,99 @@ def create_app() -> FastAPI:
             },
         )
 
+    @app.get("/dashboard/plugins/{slug}", response_class=HTMLResponse, tags=["pages"])
+    def plugin_detail_page(
+        slug: str,
+        request: Request,
+        db: Session = Depends(get_db_session),
+    ) -> HTMLResponse:
+        plugin = (
+            db.query(Plugin)
+            .options(
+                selectinload(Plugin.current_version),
+                selectinload(Plugin.versions),
+                selectinload(Plugin.runs),
+            )
+            .filter(Plugin.slug == slug)
+            .first()
+        )
+        if plugin is None:
+            raise HTTPException(status_code=404, detail="Plugin not found")
+
+        def fmt(dt: Optional[datetime]) -> Optional[str]:
+            if not dt:
+                return None
+            return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+        current_version = plugin.current_version or (plugin.versions[0] if plugin.versions else None)
+        manifest = current_version.manifest if current_version and current_version.manifest else None
+
+        versions_payload: list[dict[str, object]] = []
+        for version in plugin.versions:
+            versions_payload.append(
+                {
+                    "version": version.version,
+                    "status": version.status,
+                    "is_active": version.is_active,
+                    "schedule": version.schedule or "未配置",
+                    "created_at": fmt(version.created_at) or "—",
+                    "activated_at": fmt(version.activated_at) or "—",
+                    "last_run_at": fmt(version.last_run_at) or "—",
+                    "next_run_at": fmt(version.next_run_at) or "—",
+                }
+            )
+
+        runs_payload: list[dict[str, object]] = []
+        for run in sorted(plugin.runs, key=lambda r: r.started_at, reverse=True)[:10]:
+            runs_payload.append(
+                {
+                    "status": run.status,
+                    "started_at": fmt(run.started_at) or "—",
+                    "finished_at": fmt(run.finished_at) or "—",
+                    "message": run.message,
+                }
+            )
+
+        total_items = (
+            db.query(func.count(Bulletin.id))
+            .filter(Bulletin.source_slug == plugin.slug)
+            .scalar()
+        ) or 0
+
+        recent_bulletins = (
+            db.query(Bulletin)
+            .filter(Bulletin.source_slug == plugin.slug)
+            .order_by(Bulletin.published_at.desc().nullslast(), Bulletin.id.desc())
+            .limit(10)
+            .all()
+        )
+
+        return templates.TemplateResponse(
+            request=request,
+            name="plugin_detail.html",
+            context={
+                "title": plugin.display_name or plugin.name,
+                "header": plugin.display_name or plugin.name,
+                "plugin": plugin,
+                "current_version": current_version,
+                "manifest": manifest,
+                "versions": versions_payload,
+                "runs": runs_payload,
+                "total_items": total_items,
+                "recent_bulletins": recent_bulletins,
+                "page_id": "plugin-detail",
+            },
+        )
+
     @app.get("/bulletins/{bulletin_id}", response_class=HTMLResponse, tags=["pages"])
     def bulletin_detail(bulletin_id: int, request: Request, db: Session = Depends(get_db_session)) -> HTMLResponse:
         bulletin = crud.get_bulletin(db, bulletin_id)
         if not bulletin:
             raise HTTPException(status_code=404, detail="Bulletin not found")
         bulletin_data = BulletinOut.model_validate(bulletin)
+        plugin_exists = (
+            db.query(Plugin.slug).filter(Plugin.slug == bulletin_data.source_slug).first() is not None
+        )
         return templates.TemplateResponse(
             request=request,
             name="detail.html",
@@ -248,6 +335,7 @@ def create_app() -> FastAPI:
                 "title": bulletin_data.title,
                 "header": "情报详情",
                 "bulletin": bulletin_data,
+                "plugin_exists": plugin_exists,
                 "page_id": "bulletin-detail",
             },
         )

@@ -3,7 +3,12 @@
 <section class="static-page">
     <h2>{{ bulletin.title }}</h2>
     <p class="detail-meta">
-        来源：{{ bulletin.source_slug }}
+        来源：
+        {% if plugin_exists %}
+            <a href="/dashboard/plugins/{{ bulletin.source_slug }}">{{ bulletin.source_slug }}</a>
+        {% else %}
+            {{ bulletin.source_slug }}
+        {% endif %}
         {% if bulletin.published_at %} · 发布时间 {{ bulletin.published_at.strftime('%Y-%m-%d %H:%M UTC') }}{% endif %}
         {% if bulletin.fetched_at %} · 抓取时间 {{ bulletin.fetched_at.strftime('%Y-%m-%d %H:%M UTC') }}{% endif %}
     </p>

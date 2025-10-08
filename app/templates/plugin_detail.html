@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="static-page">
+    <h2>{{ plugin.display_name or plugin.name }}</h2>
+    <p class="detail-meta">
+        插件标识：<code>{{ plugin.slug }}</code>
+        {% if plugin.group_title %} · 分组：{{ plugin.group_title }}{% endif %}
+        {% if total_items is not none %} · 采集总量：{{ total_items }}{% endif %}
+    </p>
+    {% if plugin.description %}
+    <p>{{ plugin.description }}</p>
+    {% endif %}
+
+    <h3>当前版本</h3>
+    {% if current_version %}
+    <dl>
+        <dt>版本号</dt>
+        <dd>{{ current_version.version }}</dd>
+        <dt>状态</dt>
+        <dd>{{ current_version.status }}</dd>
+        <dt>调度</dt>
+        <dd>{{ current_version.schedule or '未配置' }}</dd>
+        <dt>上次运行</dt>
+        <dd>{{ current_version.last_run_at.astimezone().strftime('%Y-%m-%d %H:%M UTC') if current_version.last_run_at else '—' }}</dd>
+        <dt>下一次运行</dt>
+        <dd>{{ current_version.next_run_at.astimezone().strftime('%Y-%m-%d %H:%M UTC') if current_version.next_run_at else '—' }}</dd>
+    </dl>
+    {% else %}
+    <p>暂无版本信息。</p>
+    {% endif %}
+
+    {% if manifest %}
+    <h3>Manifest</h3>
+    <pre class="code-block">{{ manifest | tojson(indent=2) }}</pre>
+    {% endif %}
+
+    <h3>版本历史</h3>
+    <div class="table-wrapper">
+        <table class="plugins-table">
+            <thead>
+                <tr>
+                    <th>版本</th>
+                    <th>状态</th>
+                    <th>调度</th>
+                    <th>上传时间</th>
+                    <th>激活时间</th>
+                    <th>上次运行</th>
+                    <th>下一次运行</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for version in versions %}
+                <tr class="status-{{ version.status }}">
+                    <td>{{ version.version }}</td>
+                    <td>{{ version.status }}{% if version.is_active %}（激活）{% endif %}</td>
+                    <td>{{ version.schedule }}</td>
+                    <td>{{ version.created_at }}</td>
+                    <td>{{ version.activated_at }}</td>
+                    <td>{{ version.last_run_at }}</td>
+                    <td>{{ version.next_run_at }}</td>
+                </tr>
+                {% endfor %}
+                {% if not versions %}
+                <tr><td colspan="7" class="empty">暂无版本信息</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <h3>最近运行记录</h3>
+    <div class="table-wrapper">
+        <table class="plugins-table">
+            <thead>
+                <tr>
+                    <th>状态</th>
+                    <th>开始时间</th>
+                    <th>结束时间</th>
+                    <th>信息</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for run in runs %}
+                <tr class="status-{{ run.status }}">
+                    <td>{{ run.status }}</td>
+                    <td>{{ run.started_at }}</td>
+                    <td>{{ run.finished_at }}</td>
+                    <td>{{ run.message or '—' }}</td>
+                </tr>
+                {% endfor %}
+                {% if not runs %}
+                <tr><td colspan="4" class="empty">暂无运行记录</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <h3>最新采集</h3>
+    <div class="table-wrapper">
+        <table class="plugins-table">
+            <thead>
+                <tr>
+                    <th>标题</th>
+                    <th>发布时间</th>
+                    <th>抓取时间</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bulletin in recent_bulletins %}
+                <tr>
+                    <td><a href="/bulletins/{{ bulletin.id }}">{{ bulletin.title }}</a></td>
+                    <td>{{ bulletin.published_at.strftime('%Y-%m-%d %H:%M UTC') if bulletin.published_at else '—' }}</td>
+                    <td>{{ bulletin.fetched_at.strftime('%Y-%m-%d %H:%M UTC') if bulletin.fetched_at else '—' }}</td>
+                </tr>
+                {% endfor %}
+                {% if not recent_bulletins %}
+                <tr><td colspan="3" class="empty">暂无采集记录</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

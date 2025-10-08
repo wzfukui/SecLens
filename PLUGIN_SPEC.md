@@ -22,6 +22,14 @@
   "runtime": {
     "ingest_url": "https://host/v1/ingest/bulletins",
     "token": "<api token>"
+  },
+  "ui": {
+    "group_slug": "vulnerability_alerts",
+    "group_title": "漏洞预警",
+    "group_description": "官方与权威渠道发布的安全漏洞与补丁通知。",
+    "group_order": 10,
+    "source_title": "阿里云安全公告",
+    "source_order": 10
   }
 }
 ```
@@ -30,12 +38,14 @@
 - `source`: metadata about the upstream feed; include `publisher`, `homepage`, `feed_url`, and other relevant keys.
 - `schedule`: polling interval in seconds or cron string, interpreted by scheduler.
 - `runtime`: free-form config merged into kwargs when the entrypoint runs.
+- `ui`: optional UI metadata powering homepage/source 自动分组。常用键包括：`group_slug` / `group_title` / `group_description`（分组信息）、`group_order`（分组排序）、`source_title`（来源展示名）与 `source_order`（分组内排序）。
 
 ## Collector Contract
 - Use `app.schemas.BulletinCreate` to normalize fields; populate `source.source_slug`, `content.title`, `content.published_at`, and `raw`.
 - Only call the ingest API (`POST /v1/ingest/bulletins`) through HTTPS and include the Bearer token from manifest.
 - Log via `logging` and surface exceptions; the platform captures stdout/stderr.
 - Maintain idempotency with dedupe keys (`external_id`, `origin_url`) and persist cursors inside the plugin directory (e.g. `.cursor`).
+- 插件带 `ui` 配置后，无论是通过 `/v1/plugins/upload` 注册还是本地运行 `scripts/run_collector.py --source <slug> --ingest-url ... --force` 写入数据，首页与仪表盘都会自动生成对应的分组与来源标签。
 
 ## Testing Expectations
 - Provide `test_<slug>.py` next to plugin code using `pytest`.

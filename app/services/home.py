@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
+from pathlib import Path
 from typing import Any, Dict
 
 from sqlalchemy.orm import Session
@@ -65,48 +67,35 @@ def _list_source_bulletins(
 
 
 def _build_plugin_sections(db: Session, limit_per_source: int) -> list[HomeSection]:
-    plugins = (
-        db.query(Plugin)
-        .filter(Plugin.group_slug.isnot(None))
-        .order_by(
-            Plugin.group_order.is_(None),
-            Plugin.group_order.asc(),
-            Plugin.group_title.is_(None),
-            Plugin.group_title.asc(),
-            Plugin.slug.asc(),
-        )
-        .all()
-    )
-
     groups: Dict[str, Dict[str, Any]] = {}
 
-    for plugin in plugins:
-        if not plugin.group_slug:
+    for config in _iter_source_configs(db):
+        items, total = crud.list_bulletins(
+            db,
+            source_slug=config["slug"],
+            limit=limit_per_source,
+        )
+        if total == 0:
             continue
         group = groups.setdefault(
-            plugin.group_slug,
+            config["group_slug"],
             {
-                "slug": plugin.group_slug,
-                "title": plugin.group_title or plugin.group_slug,
-                "description": plugin.group_description or "",
-                "order": plugin.group_order,
+                "slug": config["group_slug"],
+                "title": config["group_title"],
+                "description": config["group_description"],
+                "order": config["group_order"],
                 "sources": [],
             },
         )
-
-        items, total = crud.list_bulletins(
-            db,
-            source_slug=plugin.slug,
-            limit=limit_per_source,
+        group["sources"].append(
+            {
+                "slug": config["slug"],
+                "title": config["title"],
+                "order": config["source_order"],
+                "total": total,
+                "items": [BulletinOut.model_validate(item) for item in items],
+            }
         )
-        source_entry = {
-            "slug": plugin.slug,
-            "title": plugin.display_name or plugin.name,
-            "order": plugin.source_order,
-            "total": total,
-            "items": [BulletinOut.model_validate(item) for item in items],
-        }
-        group["sources"].append(source_entry)
 
     sections: list[HomeSection] = []
     for data in sorted(
@@ -192,3 +181,87 @@ def build_home_sections(db: Session, *, limit_per_source: int = 5) -> list[HomeS
 
 
 __all__ = ["build_home_sections", "HomeSection", "SourceSection"]
+RESOURCES_DIR = Path(__file__).resolve().parents[2] / "resources"
+
+
+def _load_resource_ui_configs() -> Dict[str, dict[str, Any]]:
+    configs: Dict[str, dict[str, Any]] = {}
+    if not RESOURCES_DIR.exists():
+        return configs
+    for manifest_path in RESOURCES_DIR.glob("*/manifest.json"):
+        try:
+            data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        slug = data.get("slug")
+        ui = data.get("ui")
+        if not slug or not isinstance(ui, dict):
+            continue
+        configs[slug] = {
+            "group_slug": ui.get("group_slug"),
+            "group_title": ui.get("group_title"),
+            "group_description": ui.get("group_description"),
+            "group_order": ui.get("group_order"),
+            "source_title": ui.get("source_title") or data.get("name", slug),
+            "source_order": ui.get("source_order"),
+        }
+    return configs
+
+
+def _iter_source_configs(db: Session) -> list[dict[str, Any]]:
+    resource_map = _load_resource_ui_configs()
+    configs: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    plugins = (
+        db.query(Plugin)
+        .order_by(
+            Plugin.group_order.is_(None),
+            Plugin.group_order.asc(),
+            Plugin.group_title.is_(None),
+            Plugin.group_title.asc(),
+            Plugin.source_order.is_(None),
+            Plugin.source_order.asc(),
+            Plugin.slug.asc(),
+        )
+        .all()
+    )
+
+    for plugin in plugins:
+        slug = plugin.slug
+        seen.add(slug)
+        resource_cfg = resource_map.get(slug, {})
+        group_slug = plugin.group_slug or resource_cfg.get("group_slug")
+        if not group_slug:
+            continue
+        configs.append(
+            {
+                "slug": slug,
+                "title": plugin.display_name or resource_cfg.get("source_title") or plugin.name,
+                "group_slug": group_slug,
+                "group_title": plugin.group_title or resource_cfg.get("group_title") or group_slug,
+                "group_description": plugin.group_description or resource_cfg.get("group_description") or "",
+                "group_order": plugin.group_order if plugin.group_order is not None else resource_cfg.get("group_order"),
+                "source_order": plugin.source_order if plugin.source_order is not None else resource_cfg.get("source_order"),
+            }
+        )
+
+    for slug, cfg in resource_map.items():
+        if slug in seen:
+            continue
+        group_slug = cfg.get("group_slug")
+        if not group_slug:
+            continue
+        configs.append(
+            {
+                "slug": slug,
+                "title": cfg.get("source_title") or slug,
+                "group_slug": group_slug,
+                "group_title": cfg.get("group_title") or group_slug,
+                "group_description": cfg.get("group_description") or "",
+                "group_order": cfg.get("group_order"),
+                "source_order": cfg.get("source_order"),
+            }
+        )
+
+    return configs

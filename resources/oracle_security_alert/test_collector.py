@@ -74,7 +74,7 @@ def test_collect_normalizes_entries(tmp_path, feed_text, cpu_article_html, alert
     assert str(first.source.origin_url) == "https://www.oracle.com/security-alerts/cpuoct2025.html"
     assert first.content.published_at == datetime(2025, 10, 14, 18, 0, tzinfo=timezone.utc)
     assert first.content.title.startswith("Oracle Critical Patch Update Advisory")
-    assert "vendor-update" in first.topics
+    assert "official_bulletin" in first.topics
     assert "vendor:oracle" in first.labels
     assert first.extra == {
         "guid": "cpuoct2025",

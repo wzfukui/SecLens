@@ -140,7 +140,7 @@ class OracleSecurityCollector:
             published_at=entry.published_at,
             language="en",
         )
-        topics = ["vendor-update"]
+        topics = ["official_bulletin"]
         labels = ["vendor:oracle"]
         extra = {
             "guid": entry.guid,

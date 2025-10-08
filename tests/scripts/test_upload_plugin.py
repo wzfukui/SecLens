@@ -16,7 +16,7 @@ def test_build_plugin_archive_from_directory(tmp_path: Path) -> None:
     shutil.copytree(Path("resources/exploit_db"), plugin_dir)
 
     pycache_dir = plugin_dir / "__pycache__"
-    pycache_dir.mkdir()
+    pycache_dir.mkdir(exist_ok=True)
     (pycache_dir / "ignored.pyc").write_bytes(b"ignored")
 
     filename, archive_bytes, manifest = build_plugin_archive(plugin_dir)

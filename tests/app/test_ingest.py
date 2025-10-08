@@ -118,11 +118,11 @@ def test_rss_feed_and_frontend_rendering():
     homepage = client.get("/")
     assert homepage.status_code == 200
     assert "SecLens 情报雷达" in homepage.text
-    assert "漏洞预警" in homepage.text
-    assert "阿里云安全公告" in homepage.text
+    assert "最新采集的全量资讯流" in homepage.text
+    assert "Test bulletin" in homepage.text
 
     home_api = client.get("/v1/bulletins/home")
     assert home_api.status_code == 200
     home_payload = home_api.json()
     assert isinstance(home_payload, list)
-    assert any(section["slug"] == "vulnerability_alerts" for section in home_payload)
+    assert len(home_payload) >= 1

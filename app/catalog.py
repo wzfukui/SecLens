@@ -2,15 +2,6 @@
 
 HOME_SECTIONS: list[dict[str, object]] = [
     {
-        "slug": "vulnerability_alerts",
-        "title": "漏洞预警",
-        "description": "官方与权威渠道发布的安全漏洞与补丁通知。",
-        "sources": [
-            {"slug": "aliyun_security", "title": "阿里云安全公告"},
-            {"slug": "huawei_security", "title": "华为安全公告"},
-        ],
-    },
-    {
         "slug": "vendor_updates",
         "title": "厂商发布",
         "description": "厂商对产品安全、配置或策略的更新说明。",

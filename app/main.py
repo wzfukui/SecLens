@@ -202,7 +202,7 @@ def create_app() -> FastAPI:
             plugins_payload.append(
                 {
                     "slug": plugin.slug,
-                    "name": plugin.name,
+                    "name": plugin.display_name or plugin.name,
                     "version": latest.version if latest else "—",
                     "status": status,
                     "status_display": status_display(),
@@ -212,6 +212,7 @@ def create_app() -> FastAPI:
                     "next_run_at": fmt(current.next_run_at if current else None) or "—",
                     "created_at": fmt(plugin.created_at) or "—",
                     "total_items": collected,
+                    "group_title": plugin.group_title,
                 }
             )
 

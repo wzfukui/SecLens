@@ -27,6 +27,7 @@ class PluginManifest:
     schedule: str | None = None
     runtime: dict[str, Any] | None = None
     source: dict[str, Any] | None = None
+    ui: dict[str, Any] | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "PluginManifest":
@@ -43,6 +44,7 @@ class PluginManifest:
             schedule=data.get("schedule"),
             runtime=data.get("runtime"),
             source=data.get("source"),
+            ui=data.get("ui"),
         )
 
 

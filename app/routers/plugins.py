@@ -36,6 +36,25 @@ def _load_plugin(db: Session, plugin_id: int) -> Plugin | None:
     )
 
 
+def _apply_ui_config(plugin: Plugin, manifest: PluginManifest) -> None:
+    ui = manifest.ui or {}
+    if ui:
+        if "source_title" in ui:
+            plugin.display_name = ui.get("source_title") or plugin.display_name
+        if "group_slug" in ui:
+            plugin.group_slug = ui.get("group_slug") or plugin.group_slug
+        if "group_title" in ui:
+            plugin.group_title = ui.get("group_title") or plugin.group_title
+        if "group_description" in ui:
+            plugin.group_description = ui.get("group_description") or plugin.group_description
+        if "group_order" in ui:
+            plugin.group_order = ui.get("group_order")
+        if "source_order" in ui:
+            plugin.source_order = ui.get("source_order")
+    if not plugin.display_name:
+        plugin.display_name = plugin.display_name or manifest.name
+
+
 def _plugin_to_schema(plugin: Plugin, *, include_versions: bool = True) -> PluginInfo:
     current = (
         PluginVersionInfo.model_validate(plugin.current_version, from_attributes=True)
@@ -55,6 +74,12 @@ def _plugin_to_schema(plugin: Plugin, *, include_versions: bool = True) -> Plugi
         slug=plugin.slug,
         name=plugin.name,
         description=plugin.description,
+        display_name=plugin.display_name,
+        group_slug=plugin.group_slug,
+        group_title=plugin.group_title,
+        group_description=plugin.group_description,
+        group_order=plugin.group_order,
+        source_order=plugin.source_order,
         created_at=plugin.created_at,
         updated_at=plugin.updated_at,
         is_enabled=plugin.is_enabled,
@@ -115,6 +140,8 @@ async def upload_plugin(
         # Keep metadata in sync with latest upload.
         plugin.name = manifest.name
         plugin.description = manifest.description
+
+    _apply_ui_config(plugin, manifest)
 
     duplicate = next(
         (version for version in plugin.versions if version.version == manifest.version),

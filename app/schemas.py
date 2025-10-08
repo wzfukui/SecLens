@@ -126,6 +126,12 @@ class PluginInfo(BaseModel):
     slug: str
     name: str
     description: Optional[str]
+    display_name: Optional[str]
+    group_slug: Optional[str]
+    group_title: Optional[str]
+    group_description: Optional[str]
+    group_order: Optional[int]
+    source_order: Optional[int]
     created_at: datetime
     updated_at: datetime
     is_enabled: bool

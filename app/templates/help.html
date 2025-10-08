@@ -3,26 +3,28 @@
 <section class="static-page">
     <h2>平台工作流程</h2>
     <ol>
-        <li><strong>开发插件</strong>：在本地实现采集逻辑（示例参考仓库中的 <code>resources.aliyun_security.collector</code> 模块）。</li>
-        <li><strong>打包注册</strong>：将代码和 manifest 压缩成 ZIP，并通过 <code>POST /v1/plugins/upload</code> 提交。</li>
-        <li><strong>审核激活</strong>：调用 <code>POST /v1/plugins/{id}/activate</code>，确认 schedule、运行状态。</li>
-        <li><strong>自动调度</strong>：运行 <code>python scripts/run_scheduler.py</code> 周期执行激活的插件。</li>
-        <li><strong>数据入库/展示</strong>：插件内部调用 ingest API 写入公告表，首页、RSS、API 实时提供结构化信息。</li>
+        <li><strong>开发插件</strong>：在 <code>resources/&lt;slug&gt;/</code> 目录内实现 <code>collector.py</code> 和 <code>manifest.json</code>（可参考 <code>resources.aliyun_security</code>）。</li>
+        <li><strong>本地验证</strong>：运行 <code>pytest tests/collectors/test_*.py</code> 并使用 <code>python scripts/run_plugin.py --source &lt;slug&gt;</code> 做端到端检查。</li>
+        <li><strong>打包</strong>：执行 <code>python scripts/package_plugins.py</code> 一键生成 <code>slug-version.zip</code>，必要时可带 <code>--upload-url</code> 自动上传。</li>
+        <li><strong>上传激活</strong>：调用 <code>POST /v1/plugins/upload</code> 上传 ZIP，随后使用 <code>POST /v1/plugins/{id}/activate</code> 激活并配置调度。</li>
+        <li><strong>调度运行</strong>：运行 <code>python scripts/run_scheduler.py</code>（或接入自有调度系统）周期执行插件，采集的数据实时入库并在前端呈现。</li>
     </ol>
-    <p>如需接入现有调度系统，可将调度脚本封装为 Cron/Airflow 任务执行。</p>
+    <p>如需接入其他调度系统，可将调度脚本封装为 Cron/Airflow 任务执行。</p>
 
     <h3>完整插件示例（基于阿里云实现）</h3>
     <p>目录结构：</p>
-    <pre><code>aliyun.zip
-├── manifest.json
-└── collector.py</code></pre>
+    <pre><code>resources/
+└── aliyun_security/
+    ├── __init__.py
+    ├── collector.py
+    └── manifest.json</code></pre>
 
     <p><code>manifest.json</code></p>
     <pre><code>{
-  "slug": "aliyun_security",
-  "name": "Aliyun Bulletin Collector",
-  "version": "1.0.0",
-  "entrypoint": "collector:run",
+      "slug": "aliyun_security",
+      "name": "Aliyun Bulletin Collector",
+      "version": "1.0.0",
+      "entrypoint": "collector:run",
   "description": "采集阿里云安全公告",
   "schedule": "3600",                         // 每 3600 秒运行一次
   "source": {
@@ -99,9 +101,9 @@ def run(ingest_url: str | None = None, token: str | None = None, **runtime):
 
     <h3>上传步骤</h3>
     <ol>
-        <li>压缩：<code>zip -r aliyun.zip manifest.json collector.py</code></li>
-        <li>Base64 编码：<code>base64 aliyun.zip &gt; payload.b64</code></li>
-        <li>调用接口：</li>
+        <li>打包：<code>python scripts/package_plugins.py --output-dir dist/plugins</code>（生成 <code>aliyun_security-1.0.0.zip</code>）。</li>
+        <li>如需自动上传，可带 <code>--upload-url http://127.0.0.1:8000/v1/plugins/upload</code> 与 <code>--token</code>。</li>
+        <li>也可手动调用上传接口：</li>
     </ol>
     <pre><code>curl -X POST http://127.0.0.1:8000/v1/plugins/upload \
   -H "Content-Type: application/json" \

@@ -12,6 +12,8 @@ if str(ROOT) not in sys.path:
 from app.schemas import BulletinCreate
 from collectors.aliyun import FetchParams as AliyunFetchParams, run as run_aliyun
 from collectors.huawei import FetchParams as HuaweiFetchParams, run as run_huawei
+from collectors.linuxsecurity import FetchParams as LinuxSecurityFetchParams, run as run_linuxsecurity
+from collectors.msrc import FetchParams as MsrcFetchParams, run as run_msrc
 from resources.aliyun_security.collector import (
     FetchParams as AliyunSecurityFetchParams,
     run as run_aliyun_security,
@@ -34,6 +36,8 @@ def parse_args() -> argparse.Namespace:
         choices=[
             "aliyun",
             "huawei",
+            "msrc",
+            "linuxsecurity",
             "aliyun_security",
             "huawei_security",
             "freebuf",
@@ -58,6 +62,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--publish-date-to", dest="publish_date_to", default=None, help="Huawei security publish date end (YYYY-MM-DD)")
     parser.add_argument("--product-line", dest="product_line", default=None, help="Huawei security product line filter")
     parser.add_argument("--range", dest="range_value", type=int, default=None, help="Huawei security range filter")
+    parser.add_argument("--feed-url", dest="feed_url", default=None, help="Override feed URL for RSS-based collectors")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of records for supported collectors")
     parser.add_argument("--force", action="store_true", help="Bypass cursor when supported")
     return parser.parse_args()
@@ -81,6 +86,20 @@ def run_collector(args: argparse.Namespace) -> tuple[list[BulletinCreate], dict 
             keyword=args.keyword if args.keyword is not None else defaults.keyword,
         )
         return run_huawei(args.ingest_url, args.token, params=params)
+    if args.source == "msrc":
+        defaults = MsrcFetchParams()
+        params = MsrcFetchParams(
+            feed_url=args.feed_url or defaults.feed_url,
+            limit=args.limit or defaults.limit,
+        )
+        return run_msrc(args.ingest_url, args.token, params=params)
+    if args.source == "linuxsecurity":
+        defaults = LinuxSecurityFetchParams()
+        params = LinuxSecurityFetchParams(
+            feed_url=args.feed_url or defaults.feed_url,
+            limit=args.limit or defaults.limit,
+        )
+        return run_linuxsecurity(args.ingest_url, args.token, params=params)
     if args.source == "aliyun_security":
         defaults = AliyunSecurityFetchParams()
         params = AliyunSecurityFetchParams(

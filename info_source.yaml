@@ -9,6 +9,10 @@
     Description: Alibaba Cloud Security Notice
     Home: https://www.aliyun.com/rss/notice/zh.xml
     Remark: <category>安全</category>
+  - Microsoft Security Update Guide
+    Description: Microsoft Security Response Center advisories and revisions
+    Home: https://msrc.microsoft.com/update-guide/
+    Rss: https://api.msrc.microsoft.com/update-guide/rss
 
 # 安全新闻
 - Security News
@@ -20,6 +24,10 @@
     Description: FreeBuf网络安全行业门户
     Home: https://freebuf.com/
     Rss: https://www.freebuf.com/feed
+  - LinuxSecurity.com Hybrid
+    Description: Combined feed of Linux security advisories, news, and features
+    Home: https://linuxsecurity.com/
+    Rss: https://linuxsecurity.com/linuxsecurity_hybrid.xml
 
 
 # 黑客利用工具

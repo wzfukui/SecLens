@@ -74,7 +74,21 @@
    - 对游标或增量逻辑补充单元测试覆盖边界场景。
    - 运行 `pytest tests/collectors/test_<slug>.py`（或 `pytest tests/collectors`）保证绿灯。
 
-6. **Verification & Documentation**
-   - 手动执行 `python scripts/run_plugin.py --source <slug> --ingest-url ... --force` 验证端到端流程。
-   - 在提交说明里记录数据映射、验证步骤、速率限制等注意事项。
-  - 若插件需要额外依赖或环境变量，请在 manifest `runtime` 与文档中注明，便于后续维护。
+6. **打包上传 & 激活**
+   - 通过 `python scripts/package_plugins.py --output-dir dist/plugins` 一次性生成 `slug-version.zip`；加 `--upload-url` 可直接上传到 `/v1/plugins/upload`。
+   - 手动上传示例：
+     ```bash
+     curl -X POST http://127.0.0.1:8000/v1/plugins/upload \
+       -H "Content-Type: application/json" \
+       -d '{"filename": "xxx.zip", "content": "$(base64 xxx.zip)"}'
+     ```
+   - 激活特定插件：
+     ```bash
+     curl -X POST http://127.0.0.1:8000/v1/plugins/<id>/activate -d '{"activate": true}'
+     ```
+   - 手动执行一次采集：
+     ```bash
+     curl -X POST http://127.0.0.1:8000/v1/plugins/<id>/run
+     ```
+   - 启动本地调度：`python scripts/run_scheduler.py --ingest-url http://127.0.0.1:8000/v1/ingest/bulletins`
+   - 在提交说明里记录数据映射、验证步骤、速率限制等注意事项。若插件需要额外依赖或环境变量，请在 manifest `runtime` 与文档中注明，便于后续维护。

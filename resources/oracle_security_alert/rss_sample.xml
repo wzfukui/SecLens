@@ -12,11 +12,11 @@
       <guid>cpuoct2025</guid>
     </item>
     <item>
-      <title>Oracle Security Alert Advisory - CVE-2025-12345</title>
-      <link>https://www.oracle.com/security-alerts/alert-cve-2025-12345.html</link>
-      <description>Oracle Security Alert Advisory addressing CVE-2025-12345</description>
-      <pubDate>Mon, 01 Sep 2025 12:00:00 GMT</pubDate>
-      <guid>alert-2025-12345</guid>
+      <title>Oracle Security Alert for CVE-2025-61882</title>
+      <link>https://www.oracle.com/security-alerts/alert-cve-2025-61882.html</link>
+      <description>Oracle Security Alert Advisory addressing CVE-2025-61882</description>
+      <pubDate>Fri, 04 Oct 2025 12:30:00 GMT</pubDate>
+      <guid>alert-cve-2025-61882</guid>
     </item>
   </channel>
 </rss>

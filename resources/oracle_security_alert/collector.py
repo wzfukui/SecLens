@@ -11,6 +11,7 @@ from typing import List, Sequence
 from urllib.parse import urlparse
 
 import requests
+from bs4 import BeautifulSoup
 
 from app.schemas import BulletinCreate, ContentInfo, SourceInfo
 
@@ -21,6 +22,7 @@ USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
+ARTICLE_ACCEPT = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8"
 
 
 @dataclass
@@ -45,11 +47,13 @@ class OracleSecurityCollector:
         self.session = session or requests.Session()
         self.feed_url = feed_url or FEED_URL
         self.state_path = state_path or Path(__file__).resolve().with_name(STATE_FILE_NAME)
-        self.session.headers.update({
-            "User-Agent": USER_AGENT,
-            "Accept": "application/rss+xml, application/xml;q=0.9, */*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
-        })
+        self.session.headers.update(
+            {
+                "User-Agent": USER_AGENT,
+                "Accept": "application/rss+xml, application/xml;q=0.9, */*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+            }
+        )
 
     # Cursor helpers --------------------------------------------------
     def load_cursor(self) -> datetime | None:
@@ -117,15 +121,22 @@ class OracleSecurityCollector:
     # Normalize -------------------------------------------------------
     def normalize(self, entry: FeedEntry) -> BulletinCreate:
         origin_url = entry.link if self._is_valid_url(entry.link) else None
+        external_id = self._derive_external_id(entry, origin_url)
         source = SourceInfo(
             source_slug="oracle_security_alert",
-            external_id=entry.guid or entry.link,
+            external_id=external_id,
             origin_url=origin_url,
         )
+        article_text = self._fetch_article_body(origin_url)
+        summary = None
+        if article_text:
+            summary = self._generate_summary(article_text, limit=500)
+        elif entry.description:
+            summary = self._clean_summary(entry.description)
         content = ContentInfo(
             title=entry.title,
-            summary=entry.description,
-            body_text=entry.description,
+            summary=summary,
+            body_text=article_text or entry.description,
             published_at=entry.published_at,
             language="en",
         )
@@ -191,6 +202,119 @@ class OracleSecurityCollector:
         parsed = urlparse(value.strip())
         return bool(parsed.scheme and parsed.netloc)
 
+    def _derive_external_id(self, entry: FeedEntry, origin_url: str | None) -> str | None:
+        candidates: list[str] = []
+        if entry.guid:
+            candidates.append(entry.guid)
+        if origin_url:
+            parsed = urlparse(origin_url)
+            slug = Path(parsed.path).stem
+            if slug:
+                candidates.append(slug)
+        if entry.link:
+            candidates.append(entry.link)
+        if entry.title:
+            candidates.append(entry.title)
+        for candidate in candidates:
+            cleaned = candidate.strip()
+            if cleaned:
+                return cleaned
+        return None
+
+    def _fetch_article_body(self, url: str | None) -> str | None:
+        if not self._is_valid_url(url):
+            return None
+        try:
+            response = self.session.get(url, timeout=30, headers={"Accept": ARTICLE_ACCEPT})
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            LOGGER.debug("Failed to fetch article %s: %s", url, exc)
+            return None
+
+        return self._extract_text(response.text)
+
+    @staticmethod
+    def _extract_text(html: str) -> str | None:
+        soup = BeautifulSoup(html, "html.parser")
+        OracleSecurityCollector._remove_tracked_sections(soup, marker="header")
+        OracleSecurityCollector._remove_tracked_sections(soup, marker="footer")
+        paragraphs = OracleSecurityCollector._collect_paragraphs(
+            soup.select_one("article")
+            or soup.select_one(".content")
+            or soup.select_one("#content")
+            or soup.select_one(".main-content")
+            or soup.body
+            or soup
+        )
+        if not paragraphs:
+            fallback = soup.get_text(separator="\n\n", strip=True)
+            text = OracleSecurityCollector._strip_noise_lines(fallback)
+            return text or None
+        text = "\n\n".join(paragraphs).strip()
+        return text or None
+
+    @staticmethod
+    def _collect_paragraphs(root) -> list[str]:
+        if root is None:
+            return []
+        paragraphs: list[str] = []
+        seen: set[str] = set()
+        for element in root.find_all(["p", "li"]):
+            text = " ".join(element.stripped_strings)
+            if not text:
+                continue
+            if OracleSecurityCollector._is_noise_text(text):
+                continue
+            if text in seen:
+                continue
+            seen.add(text)
+            paragraphs.append(text)
+        return paragraphs
+
+    @staticmethod
+    def _clean_summary(value: str | None) -> str | None:
+        if not value:
+            return None
+        soup = BeautifulSoup(value, "html.parser")
+        text = soup.get_text(" ", strip=True)
+        return text or None
+
+    @staticmethod
+    def _is_noise_text(value: str) -> bool:
+        normalized = value.strip().lower()
+        return normalized in {"skip to content", "skip to main content"}
+
+    @staticmethod
+    def _strip_noise_lines(text: str) -> str:
+        if not text:
+            return text
+        lines = []
+        for line in text.splitlines():
+            cleaned = line.strip()
+            if not cleaned:
+                continue
+            if OracleSecurityCollector._is_noise_text(cleaned):
+                continue
+            lines.append(cleaned)
+        return "\n\n".join(lines)
+
+    @staticmethod
+    def _generate_summary(body: str, *, limit: int) -> str | None:
+        text = body.strip()
+        if not text:
+            return None
+        if len(text) <= limit:
+            return text
+        truncated = text[:limit].rstrip()
+        if not truncated:
+            return text[:limit]
+        return f"{truncated}..."
+
+    @staticmethod
+    def _remove_tracked_sections(soup: BeautifulSoup, *, marker: str) -> None:
+        for element in soup.select(f'[data-trackas="{marker}"]'):
+            element.decompose()
+
 
 def run(
     ingest_url: str | None = None,
@@ -213,7 +337,7 @@ def run(
         response.raise_for_status()
         try:
             response_data = response.json()
-        except requests.JSONDecodeError:  # pragma: no cover
+        except ValueError:  # pragma: no cover
             response_data = {"status_code": response.status_code}
     return bulletins, response_data
 

@@ -41,3 +41,33 @@
 - Review third-party source terms before adding a collector and honor rate limits (`time.sleep` if necessary).
 - Store long-lived API tokens in the secrets manager of your deployment environment, not in code or `.env` files.
 - 新的插件运行框架将通过集中配置管理密钥；在迁移完成前避免在插件内直接请求外部存储。
+
+## Plugin Development Workflow
+1. **Scope & Source Review**
+   - Confirm whether the new feed should live under `collectors/` (ad-hoc scripts) or `resources/<source>/` (packaged plugin).
+   - Inspect the target API/RSS format (sample payload, pagination, auth, rate limits). Capture revision semantics early (e.g., `guid` + `Revision`).
+
+2. **Schema & Normalization Plan**
+   - Map source fields to `BulletinCreate` (`SourceInfo`, `ContentInfo`, `labels`, `topics`, `extra`, `raw`). Reuse helper utilities (date parsing, JSON parsing) where possible.
+   - Decide on canonical `source_slug`, topic/label conventions (align with `app/catalog.py`), and any cursor or state requirements.
+
+3. **Implementation**
+   - Create `<source>.py` with a lightweight collector class:
+     - `fetch(...)` returns raw entries; encapsulate HTTP session setup (headers, timeouts, retries if needed).
+     - `normalize(...)` converts a raw item to `BulletinCreate`, including deduplicated labels/topics and `extra/raw` payloads.
+     - `collect(...)` orchestrates fetch + normalize; expose top-level `run(...)` that optionally posts to ingest API (keep consistent with existing collectors).
+   - Guard against parsing failures with defensive checks and fallbacks.
+
+4. **CLI / Metadata Wiring**
+   - Register the collector in `scripts/run_collector.py` (`--source` choice, params).
+   - Update `info_source.yaml` (and `resources/*/manifest.json` if applicable) so the new source surfaces in documentation/UI.
+
+5. **Testing**
+   - Add `tests/collectors/test_<source>.py` containing a normalization unit test (representative sample payload + assertions on slug, external_id, topics/labels, extras).
+   - When the collector persists state/cursors, include tests covering edge cases (e.g., duplicate filtering, revision bumps).
+   - Run `pytest tests/collectors/test_<source>.py` (or the full suite) before committing.
+
+6. **Verification & Documentation**
+   - Optionally run the collector through `python scripts/run_collector.py --source <source> --force` against a local ingest endpoint to confirm end-to-end behavior.
+   - Note any manual validation steps or source-specific caveats in commit/PR description.
+   - For follow-up maintenance, document topic/label mappings and cursor files in the collector header comments when they deviate from the default pattern.

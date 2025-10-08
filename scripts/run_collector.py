@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
 
 from app.schemas import BulletinCreate
 from collectors.aliyun import FetchParams as AliyunFetchParams, run as run_aliyun
+from collectors.hackernews import FetchParams as HackerNewsFetchParams, run as run_hackernews
 from collectors.huawei import FetchParams as HuaweiFetchParams, run as run_huawei
 from collectors.linuxsecurity import FetchParams as LinuxSecurityFetchParams, run as run_linuxsecurity
 from collectors.msrc import FetchParams as MsrcFetchParams, run as run_msrc
@@ -38,6 +39,7 @@ def parse_args() -> argparse.Namespace:
             "huawei",
             "msrc",
             "linuxsecurity",
+            "hackernews",
             "aliyun_security",
             "huawei_security",
             "freebuf",
@@ -100,6 +102,13 @@ def run_collector(args: argparse.Namespace) -> tuple[list[BulletinCreate], dict 
             limit=args.limit or defaults.limit,
         )
         return run_linuxsecurity(args.ingest_url, args.token, params=params)
+    if args.source == "hackernews":
+        defaults = HackerNewsFetchParams()
+        params = HackerNewsFetchParams(
+            feed_url=args.feed_url or defaults.feed_url,
+            limit=args.limit or defaults.limit,
+        )
+        return run_hackernews(args.ingest_url, args.token, params=params)
     if args.source == "aliyun_security":
         defaults = AliyunSecurityFetchParams()
         params = AliyunSecurityFetchParams(

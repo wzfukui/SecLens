@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Sequence
 
 from sqlalchemy import inspect
+from sqlalchemy.orm import Session
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -61,10 +62,43 @@ def reset_database() -> None:
     print("Database reset complete.")
 
 
+LINUXSECURITY_SOURCES = ("linuxsecurity_hybrid",)
+
+
+def clear_linuxsecurity_data() -> None:
+    engine = get_engine()
+    with Session(engine) as session:
+        bulletins = (
+            session.query(models.Bulletin)
+            .filter(models.Bulletin.source_slug.in_(LINUXSECURITY_SOURCES))
+            .all()
+        )
+        if not bulletins:
+            print("No LinuxSecurity bulletins found.")
+            return
+        total = len(bulletins)
+        print(f"Deleting {total} LinuxSecurity bulletins …")
+        for bulletin in bulletins:
+            session.delete(bulletin)
+        session.commit()
+        print("LinuxSecurity data cleanup complete.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Reset SecLens development database (drops data).")
-    parser.parse_args()
-    reset_database()
+    parser.add_argument(
+        "--source",
+        choices=["all", "linuxsecurity"],
+        default="all",
+        help="Target dataset to reset. Defaults to 'all'.",
+    )
+    args = parser.parse_args()
+    if args.source == "all":
+        reset_database()
+    elif args.source == "linuxsecurity":
+        clear_linuxsecurity_data()
+    else:
+        parser.error(f"Unsupported source: {args.source!r}")
 
 
 if __name__ == "__main__":

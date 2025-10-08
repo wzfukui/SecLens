@@ -22,7 +22,7 @@ LOGGER = logging.getLogger(__name__)
 CHECK_INTERVAL = 30  # seconds
 
 
-def run_plugins_once():
+def run_plugins_once(plugin_ids: list[int] | None = None, *, force: bool = False):
     Session = get_session_factory()
     settings = get_settings()
     ingest_url = settings.ingest_base_url.rstrip("/") + "/v1/ingest/bulletins"
@@ -33,8 +33,10 @@ def run_plugins_once():
             .filter(Plugin.is_enabled.is_(True), PluginVersion.is_active.is_(True))
             .all()
         )
+        if plugin_ids is not None:
+            versions = [v for v in versions if v.plugin_id in plugin_ids]
         for version in versions:
-            if not should_run(version):
+            if not force and not should_run(version):
                 continue
             plugin = version.plugin
             LOGGER.info("Running plugin %s@%s", plugin.slug, version.version)

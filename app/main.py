@@ -201,6 +201,7 @@ def create_app() -> FastAPI:
             total_collected += collected
             plugins_payload.append(
                 {
+                    "id": plugin.id,
                     "slug": plugin.slug,
                     "name": plugin.display_name or plugin.name,
                     "version": latest.version if latest else "—",

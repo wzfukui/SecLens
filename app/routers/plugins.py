@@ -298,3 +298,16 @@ def list_plugin_runs(
             )
         )
     return payload
+@router.post("/{plugin_id}/run", response_model=PluginInfo)
+def run_plugin_now(plugin_id: int, db: Session = Depends(get_db_session)) -> PluginInfo:
+    plugin = _load_plugin(db, plugin_id)
+    if plugin is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin not found")
+    if not plugin.is_enabled or not plugin.current_version:
+        raise HTTPException(status_code=400, detail="Plugin is not active")
+
+    run_plugins_once([plugin_id], force=True)
+    refreshed = _load_plugin(db, plugin_id)
+    if refreshed is None:
+        raise HTTPException(status_code=500, detail="Failed to load plugin after run")
+    return _plugin_to_schema(refreshed)

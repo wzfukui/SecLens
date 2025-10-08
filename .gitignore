@@ -38,3 +38,4 @@ app/static/dist/*
 
 # Plugin uploads runtime
 plugins/uploads/
+app/plugins/uploads/

@@ -35,6 +35,9 @@
                     <td>
                         <strong><a href="/dashboard/plugins/{{ plugin.slug }}">{{ plugin.name }}</a></strong>
                         <div class="slug">{{ plugin.slug }}</div>
+                        {% if not plugin.is_active %}
+                        <button class="activate-btn" data-id="{{ plugin.id }}">激活并运行</button>
+                        {% endif %}
                     </td>
                     <td>{{ plugin.version }}</td>
                     <td>
@@ -56,4 +59,39 @@
         </table>
     </div>
 </section>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const buttons = document.querySelectorAll('.activate-btn');
+    buttons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+            const pluginId = btn.dataset.id;
+            if (!pluginId) return;
+            btn.disabled = true;
+            const originalText = btn.textContent;
+            btn.textContent = '激活中…';
+            try {
+                const activateResp = await fetch(`/v1/plugins/${pluginId}/activate`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({activate: true})
+                });
+                if (!activateResp.ok) {
+                    const message = await activateResp.text();
+                    throw new Error(message || activateResp.statusText);
+                }
+                const runResp = await fetch(`/v1/plugins/${pluginId}/run`, {method: 'POST'});
+                if (!runResp.ok) {
+                    const message = await runResp.text();
+                    throw new Error(message || runResp.statusText);
+                }
+                window.location.reload();
+            } catch (error) {
+                alert(`激活失败：${error}`);
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

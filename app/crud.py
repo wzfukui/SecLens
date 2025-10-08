@@ -2,8 +2,8 @@
 from datetime import datetime, timezone
 from typing import Optional, Tuple
 
-from sqlalchemy import Select, func, select, String
-from sqlalchemy.orm import Session
+from sqlalchemy import Select, func, select
+from sqlalchemy.orm import Session, selectinload
 
 from app import models
 from app.schemas import BulletinCreate
@@ -29,8 +29,8 @@ def upsert_bulletin(session: Session, payload: BulletinCreate) -> Tuple[models.B
         existing.body_text = payload.content.body_text
         existing.origin_url = str(payload.source.origin_url) if payload.source.origin_url else None
         existing.severity = payload.severity
-        existing.labels = payload.labels or None
-        existing.topics = payload.topics or None
+        existing.labels = payload.labels
+        existing.topics = payload.topics
         existing.attributes = payload.extra or existing.attributes
         existing.published_at = payload.content.published_at
         existing.fetched_at = payload.fetched_at or existing.fetched_at or now
@@ -47,8 +47,6 @@ def upsert_bulletin(session: Session, payload: BulletinCreate) -> Tuple[models.B
             body_text=payload.content.body_text,
             origin_url=str(payload.source.origin_url) if payload.source.origin_url else None,
             severity=payload.severity,
-            labels=payload.labels or None,
-            topics=payload.topics or None,
             published_at=payload.content.published_at,
             fetched_at=payload.fetched_at or now,
             created_at=now,
@@ -56,24 +54,29 @@ def upsert_bulletin(session: Session, payload: BulletinCreate) -> Tuple[models.B
             attributes=payload.extra,
             raw=payload.raw,
         )
+        bulletin.labels = payload.labels
+        bulletin.topics = payload.topics
         session.add(bulletin)
         created = True
     return bulletin, created
 
 
 def _base_bulletin_query() -> Select:
-    return select(models.Bulletin)
+    return select(models.Bulletin).options(
+        selectinload(models.Bulletin.label_links),
+        selectinload(models.Bulletin.topic_links),
+    )
 
 
 def list_bulletins(
     session: Session,
     *,
-    source_slug: str | None = None,
-    label: str | None = None,
-    topic: str | None = None,
-    since: datetime | None = None,
-    until: datetime | None = None,
-    text: str | None = None,
+    source_slug: Optional[str] = None,
+    label: Optional[str] = None,
+    topic: Optional[str] = None,
+    since: Optional[datetime] = None,
+    until: Optional[datetime] = None,
+    text: Optional[str] = None,
     limit: int = 20,
     offset: int = 0,
 ) -> tuple[list[models.Bulletin], int]:
@@ -81,30 +84,22 @@ def list_bulletins(
 
     base_query = _base_bulletin_query()
 
-    filters: list = []
-
     if source_slug:
-        filters.append(models.Bulletin.source_slug == source_slug)
-    bind = session.get_bind()
-    dialect = bind.dialect.name if bind is not None else ""
-
-    def _like_pattern(value: str) -> str:
-        return f'%"{value}"%'
-
+        base_query = base_query.where(models.Bulletin.source_slug == source_slug)
     if label:
-        filters.append(models.Bulletin.labels.cast(String).like(_like_pattern(label)))
+        base_query = base_query.join(models.Bulletin.label_links).where(models.BulletinLabel.label == label)
     if topic:
-        filters.append(models.Bulletin.topics.cast(String).like(_like_pattern(topic)))
+        base_query = base_query.join(models.Bulletin.topic_links).where(models.BulletinTopic.topic == topic)
     if since:
-        filters.append(models.Bulletin.published_at >= since)
+        base_query = base_query.where(models.Bulletin.published_at >= since)
     if until:
-        filters.append(models.Bulletin.published_at <= until)
+        base_query = base_query.where(models.Bulletin.published_at <= until)
     if text:
         like_pattern = f"%{text}%"
-        filters.append(models.Bulletin.title.ilike(like_pattern))
+        base_query = base_query.where(models.Bulletin.title.ilike(like_pattern))
 
-    if filters:
-        base_query = base_query.where(*filters)
+    if label or topic:
+        base_query = base_query.distinct(models.Bulletin.id)
 
     total_stmt = select(func.count()).select_from(base_query.subquery())
     total = session.execute(total_stmt).scalar_one()
@@ -112,7 +107,20 @@ def list_bulletins(
     safe_limit = max(1, min(limit, 200))
     safe_offset = max(0, offset)
 
-    query = base_query.order_by(models.Bulletin.published_at.desc(), models.Bulletin.id.desc())
+    order_columns = [
+        models.Bulletin.published_at.desc().nullslast(),
+        models.Bulletin.id.desc(),
+    ]
+
+    if label or topic:
+        query = (
+            select(models.Bulletin)
+            .where(models.Bulletin.id.in_(base_query.with_only_columns(models.Bulletin.id)))
+            .order_by(*order_columns)
+        )
+    else:
+        query = base_query.order_by(*order_columns)
+
     results = session.scalars(query.limit(safe_limit).offset(safe_offset)).all()
     return results, int(total)
 

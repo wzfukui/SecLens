@@ -56,22 +56,4 @@
         </table>
     </div>
 </section>
-
-<style>
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
-    .stat-card { background: linear-gradient(135deg, #2563eb, #1e40af); color: #fff; padding: 1.4rem; border-radius: 12px; box-shadow: 0 16px 36px rgba(37, 99, 235, 0.3); }
-    .stat-value { font-size: 1.8rem; font-weight: 700; }
-    .stat-label { margin-top: 0.35rem; font-size: 0.9rem; opacity: 0.85; }
-    .table-wrapper { overflow-x: auto; }
-    .plugins-table { width: 100%; border-collapse: collapse; margin-top: 1.4rem; }
-    .plugins-table th { text-align: left; padding: 0.75rem 1rem; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; border-bottom: 1px solid #e2e8f0; }
-    .plugins-table td { padding: 0.85rem 1rem; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; vertical-align: middle; }
-    .plugins-table tr:last-child td { border-bottom: none; }
-    .plugins-table .slug { font-size: 0.8rem; color: #64748b; margin-top: 0.25rem; }
-    .status-tag { padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; display: inline-flex; align-items: center; }
-    .status-tag.active { background: rgba(34, 197, 94, 0.15); color: #15803d; }
-    .status-tag.inactive { background: rgba(148, 163, 184, 0.2); color: #475569; }
-    .plugins-table tr.status-failed td { background: rgba(248, 113, 113, 0.08); }
-    .plugins-table td.empty { text-align: center; color: #94a3b8; }
-</style>
 {% endblock %}

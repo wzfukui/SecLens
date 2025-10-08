@@ -1,4 +1,5 @@
 """Database engine and session handling utilities."""
+from __future__ import annotations
 from collections.abc import Generator
 
 from sqlalchemy import create_engine

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app import database
-from app.models import Plugin, Bulletin
+from app.models import Plugin, PluginVersion, Bulletin
 
 from tests.app.test_ingest import create_test_client
 
@@ -15,20 +15,32 @@ def _add_plugin(session: Session, *, slug: str, status: str, is_active: bool = F
     plugin = Plugin(
         slug=slug,
         name=f"{slug} collector",
-        version="1.0.0",
         description="test",
+        created_at=now,
+        updated_at=now,
+        is_enabled=True,
+    )
+    session.add(plugin)
+    session.flush()
+
+    version = PluginVersion(
+        plugin_id=plugin.id,
+        version="1.0.0",
         entrypoint="collector:run",
         schedule="1800" if is_active else None,
         status=status,
         is_active=is_active,
         upload_path="/tmp",
+        manifest={"version": "1.0.0"},
         created_at=now,
         updated_at=now,
         activated_at=now if is_active else None,
         last_run_at=now if is_active else None,
         next_run_at=now if is_active else None,
     )
-    session.add(plugin)
+    plugin.versions.append(version)
+    if is_active:
+        plugin.current_version = version
     session.commit()
 
 
@@ -53,7 +65,7 @@ def test_plugin_dashboard_renders_plugin_table():
     assert SessionFactory is not None
 
     with SessionFactory() as session:
-        _add_plugin(session, slug="demo_plugin", status="active", is_active=False)
+        _add_plugin(session, slug="demo_plugin", status="active", is_active=True)
         _add_plugin(session, slug="staging_plugin", status="uploaded", is_active=False)
         _add_bulletin(session, source_slug="demo_plugin")
 

@@ -1,53 +1,67 @@
 """Pydantic schemas shared across the API and collectors."""
+from __future__ import annotations
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, Optional
 
 from pydantic import AliasChoices, BaseModel, Field, HttpUrl
 
 
 class SourceInfo(BaseModel):
-    source_slug: str = Field(..., description="Internal slug identifying the collector source.")
-    external_id: str | None = Field(
-        default=None, description="Stable identifier supplied by the data source (if available)."
+    source_slug: str = Field(
+        ...,
+        description="Internal slug identifying the collector source.",
     )
-    origin_url: HttpUrl | None = Field(default=None, description="Canonical URL for the bulletin.")
+    external_id: Optional[str] = Field(
+        default=None,
+        description="Stable identifier supplied by the data source (if available).",
+    )
+    origin_url: Optional[HttpUrl] = Field(
+        default=None,
+        description="Canonical URL for the bulletin.",
+    )
 
 
 class ContentInfo(BaseModel):
     title: str
-    summary: str | None = None
-    body_text: str | None = None
-    published_at: datetime | None = None
-    language: str | None = None
+    summary: Optional[str] = None
+    body_text: Optional[str] = None
+    published_at: Optional[datetime] = None
+    language: Optional[str] = None
 
 
 class BulletinCreate(BaseModel):
     source: SourceInfo
     content: ContentInfo
-    severity: str | None = None
-    fetched_at: datetime | None = None
+    severity: Optional[str] = None
+    fetched_at: Optional[datetime] = None
     labels: list[str] = Field(default_factory=list)
     topics: list[str] = Field(default_factory=list)
-    extra: dict[str, Any] | None = Field(default=None, description="Normalized source-specific attributes")
-    raw: dict[str, Any] | None = Field(default=None, description="Unstructured payload for debugging.")
+    extra: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Normalized source-specific attributes",
+    )
+    raw: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Unstructured payload for debugging.",
+    )
 
 
 class BulletinOut(BaseModel):
     id: int
     source_slug: str
-    external_id: str | None
+    external_id: Optional[str]
     title: str
-    summary: str | None
-    body_text: str | None
-    origin_url: HttpUrl | None
-    severity: str | None
-    labels: list[str] | None
-    topics: list[str] | None
-    published_at: datetime | None
-    fetched_at: datetime | None
+    summary: Optional[str]
+    body_text: Optional[str]
+    origin_url: Optional[HttpUrl]
+    severity: Optional[str]
+    labels: list[str] = Field(default_factory=list)
+    topics: list[str] = Field(default_factory=list)
+    published_at: Optional[datetime]
+    fetched_at: Optional[datetime]
     created_at: datetime
     updated_at: datetime
-    extra: dict[str, Any] | None = Field(
+    extra: Optional[Dict[str, Any]] = Field(
         default=None,
         validation_alias=AliasChoices("attributes", "extra"),
         serialization_alias="extra",
@@ -84,26 +98,39 @@ class SourceSectionOut(BaseModel):
 class HomeSectionOut(BaseModel):
     slug: str
     title: str
-    description: str | None = None
+    description: Optional[str] = None
     sources: list[SourceSectionOut]
+
+class PluginVersionInfo(BaseModel):
+    id: int
+    plugin_id: int
+    version: str
+    entrypoint: str
+    schedule: Optional[str]
+    status: str
+    is_active: bool
+    manifest: Optional[Dict[str, Any]]
+    created_at: datetime
+    updated_at: datetime
+    activated_at: Optional[datetime]
+    deactivated_at: Optional[datetime]
+    last_run_at: Optional[datetime]
+    next_run_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
 
 
 class PluginInfo(BaseModel):
     id: int
     slug: str
     name: str
-    version: str
-    description: str | None
-    entrypoint: str
-    schedule: str | None
-    is_active: bool
-    status: str
+    description: Optional[str]
     created_at: datetime
     updated_at: datetime
-    activated_at: datetime | None
-    last_run_at: datetime | None
-    next_run_at: datetime | None
-    manifest: dict[str, Any] | None
+    is_enabled: bool
+    current_version: Optional[PluginVersionInfo] = None
+    versions: list[PluginVersionInfo] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
@@ -115,6 +142,10 @@ class PluginListResponse(BaseModel):
 
 class PluginActivateRequest(BaseModel):
     activate: bool = True
+    version_id: Optional[int] = Field(
+        default=None,
+        description="Activate a specific version. Defaults to plugin's latest uploaded version.",
+    )
 
 
 class PluginUploadRequest(BaseModel):
@@ -126,10 +157,12 @@ class PluginRunInfo(BaseModel):
     id: int
     plugin_id: int
     plugin_slug: str
+    plugin_version_id: Optional[int]
+    plugin_version: Optional[str]
     status: str
-    message: str | None
+    message: Optional[str]
     started_at: datetime
-    finished_at: datetime | None
+    finished_at: Optional[datetime]
 
 __all__ = [
     "SourceInfo",
@@ -141,6 +174,7 @@ __all__ = [
     "BulletinListResponse",
     "SourceSectionOut",
     "HomeSectionOut",
+    "PluginVersionInfo",
     "PluginInfo",
     "PluginListResponse",
     "PluginActivateRequest",

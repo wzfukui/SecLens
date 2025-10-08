@@ -17,7 +17,7 @@ DEFAULT_PAGE_SIZE = 50
 USER_AGENT = "SecLensAliyunCollector/1.0"
 
 
-@dataclass(slots=True)
+@dataclass
 class FetchParams:
     """Pagination and filtering settings for the Aliyun API."""
 

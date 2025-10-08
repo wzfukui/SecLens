@@ -20,7 +20,7 @@ STATE_FILE_NAME = ".cursor"
 DEFAULT_LIMIT = 40
 
 
-@dataclass(slots=True)
+@dataclass
 class FeedEntry:
     slug: str
     title: str

@@ -11,7 +11,7 @@ from app.catalog import HOME_SECTIONS
 from app.schemas import BulletinOut
 
 
-@dataclass(slots=True)
+@dataclass
 class SourceSection:
     slug: str
     title: str
@@ -19,7 +19,7 @@ class SourceSection:
     items: list[BulletinOut]
 
 
-@dataclass(slots=True)
+@dataclass
 class HomeSection:
     slug: str
     title: str

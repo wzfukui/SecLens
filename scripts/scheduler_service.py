@@ -3,13 +3,13 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
 from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import FastAPI
 
 from app.database import get_session_factory
-from app.models import Plugin, PluginRun
+from app.models import Plugin, PluginRun, PluginVersion
 from app.services.plugins import load_callable, should_run, compute_next_run
 from app.config import get_settings
 
@@ -27,30 +27,43 @@ def run_plugins_once():
     settings = get_settings()
     ingest_url = settings.ingest_base_url.rstrip("/") + "/v1/ingest/bulletins"
     with Session() as session:
-        plugins = session.query(Plugin).all()
-        for plugin in plugins:
-            if not should_run(plugin):
+        versions = (
+            session.query(PluginVersion)
+            .join(Plugin, PluginVersion.plugin_id == Plugin.id)
+            .filter(Plugin.is_enabled.is_(True), PluginVersion.is_active.is_(True))
+            .all()
+        )
+        for version in versions:
+            if not should_run(version):
                 continue
-            LOGGER.info("Running plugin %s", plugin.slug)
+            plugin = version.plugin
+            LOGGER.info("Running plugin %s@%s", plugin.slug, version.version)
             started = datetime.now(timezone.utc)
-            run = PluginRun(plugin_id=plugin.id, started_at=started, status="running")
+            run = PluginRun(
+                plugin_id=plugin.id,
+                plugin_version_id=version.id,
+                started_at=started,
+                status="running",
+            )
             session.add(run)
             session.commit()
 
             try:
-                func = load_callable(plugin)
-                runtime_args = {}
-                if plugin.manifest and isinstance(plugin.manifest, dict):
-                    runtime_args.update(plugin.manifest.get("runtime", {}))
-
+                func = load_callable(version)
+                runtime_args: dict[str, Any] = {}
+                should_proxy_post = True
+                if version.manifest and isinstance(version.manifest, dict):
+                    runtime_args.update(version.manifest.get("runtime", {}))
                 if "ingest_url" not in runtime_args:
                     runtime_args["ingest_url"] = ingest_url
+                else:
+                    should_proxy_post = False
 
                 result = func(**runtime_args)
 
                 if requests and isinstance(result, tuple):
                     bulletins, _response = result
-                    if bulletins and "ingest_url" not in runtime_args:
+                    if bulletins and should_proxy_post:
                         payload = [item.model_dump(mode="json") for item in bulletins]
                         requests.post(ingest_url, json=payload, timeout=30)
                 run.status = "success"
@@ -61,8 +74,10 @@ def run_plugins_once():
             finally:
                 finished = datetime.now(timezone.utc)
                 run.finished_at = finished
-                plugin.last_run_at = finished
-                plugin.next_run_at = compute_next_run(plugin.schedule, finished)
+                version.last_run_at = finished
+                version.next_run_at = compute_next_run(version.schedule, finished)
+                version.updated_at = finished
+                plugin.updated_at = finished
                 session.commit()
 
 

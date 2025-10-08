@@ -14,38 +14,35 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.database import get_session_factory
-from app.models import Plugin, PluginRun
-from app.services.plugins import UPLOAD_ROOT, compute_next_run, should_run
+from app.models import Plugin, PluginRun, PluginVersion
+from app.services.plugins import (
+    UPLOAD_ROOT,
+    compute_next_run,
+    load_callable,
+    should_run,
+)
 
 
-def load_callable(plugin: Plugin):
-    module_path, _, attr = plugin.entrypoint.partition(":")
-    if not attr:
-        raise ValueError("Entrypoint must be in the form 'module:callable'")
-
-    plugin_dir = Path(plugin.upload_path)
-    if plugin_dir.exists() and str(plugin_dir) not in sys.path:
-        sys.path.insert(0, str(plugin_dir))
-
-    module = importlib.import_module(module_path)
-    func = getattr(module, attr)
-    if not callable(func):
-        raise TypeError("Entrypoint is not callable")
-    return func
-
-
-def run_plugin(plugin: Plugin, ingest_override: str | None = None) -> PluginRun:
+def run_plugin(version: PluginVersion, ingest_override: str | None = None) -> PluginRun:
     Session = get_session_factory()
     with Session() as session:
-        plugin = session.get(Plugin, plugin.id)
+        version = session.get(PluginVersion, version.id)
+        if version is None:
+            raise RuntimeError("Plugin version not found")
+        plugin = version.plugin
         started_at = datetime.now(timezone.utc)
-        run = PluginRun(plugin_id=plugin.id, started_at=started_at, status="running")
+        run = PluginRun(
+            plugin_id=plugin.id,
+            plugin_version_id=version.id,
+            started_at=started_at,
+            status="running",
+        )
         session.add(run)
         session.commit()
 
         try:
-            func = load_callable(plugin)
-            runtime_cfg = plugin.manifest.get("runtime", {}) if plugin.manifest else {}
+            func = load_callable(version)
+            runtime_cfg = version.manifest.get("runtime", {}) if version.manifest else {}
             if ingest_override:
                 runtime_cfg = dict(runtime_cfg or {})
                 runtime_cfg["ingest_url"] = ingest_override
@@ -66,8 +63,9 @@ def run_plugin(plugin: Plugin, ingest_override: str | None = None) -> PluginRun:
         finally:
             finished = datetime.now(timezone.utc)
             run.finished_at = finished
-            plugin.last_run_at = finished
-            plugin.next_run_at = compute_next_run(plugin.schedule, finished)
+            version.last_run_at = finished
+            version.next_run_at = compute_next_run(version.schedule, finished)
+            plugin.updated_at = finished
             session.commit()
         return run
 
@@ -75,12 +73,17 @@ def run_plugin(plugin: Plugin, ingest_override: str | None = None) -> PluginRun:
 def poll_plugins(ingest_override: str | None = None) -> None:
     Session = get_session_factory()
     with Session() as session:
-        plugins = session.query(Plugin).all()
-        due_plugins = [plugin for plugin in plugins if should_run(plugin)]
+        versions = (
+            session.query(PluginVersion)
+            .join(Plugin, PluginVersion.plugin_id == Plugin.id)
+            .filter(Plugin.is_enabled.is_(True), PluginVersion.is_active.is_(True))
+            .all()
+        )
+        due_versions = [version for version in versions if should_run(version)]
         session.commit()
-        for plugin in due_plugins:
-            session.refresh(plugin)
-            run_plugin(plugin, ingest_override=ingest_override)
+        for version in due_versions:
+            session.refresh(version)
+            run_plugin(version, ingest_override=ingest_override)
 
 
 def parse_args() -> argparse.Namespace:

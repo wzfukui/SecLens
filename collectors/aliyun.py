@@ -15,7 +15,7 @@ DEFAULT_PAGE_SIZE = 50
 USER_AGENT = "SecLensCollector/0.1"
 
 
-@dataclass(slots=True)
+@dataclass
 class FetchParams:
     page_no: int = 1
     page_size: int = DEFAULT_PAGE_SIZE

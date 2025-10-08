@@ -6,21 +6,74 @@ import binascii
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db_session
-from app.models import Plugin, PluginRun
+from app.models import Plugin, PluginRun, PluginVersion
 from app.schemas import (
     PluginActivateRequest,
     PluginInfo,
     PluginListResponse,
-    PluginUploadRequest,
     PluginRunInfo,
+    PluginUploadRequest,
+    PluginVersionInfo,
 )
-from app.services.plugins import extract_plugin_archive, compute_next_run
+from app.services.plugins import PluginManifest, compute_next_run, extract_plugin_archive
 from scripts.scheduler_service import run_plugins_once
 
 router = APIRouter(prefix="/v1/plugins", tags=["plugins"])
+
+
+def _load_plugin(db: Session, plugin_id: int) -> Plugin | None:
+    return (
+        db.query(Plugin)
+        .options(
+            selectinload(Plugin.versions),
+            selectinload(Plugin.current_version),
+        )
+        .filter(Plugin.id == plugin_id)
+        .first()
+    )
+
+
+def _plugin_to_schema(plugin: Plugin, *, include_versions: bool = True) -> PluginInfo:
+    current = (
+        PluginVersionInfo.model_validate(plugin.current_version, from_attributes=True)
+        if plugin.current_version
+        else None
+    )
+    versions = (
+        [
+            PluginVersionInfo.model_validate(version, from_attributes=True)
+            for version in plugin.versions
+        ]
+        if include_versions
+        else []
+    )
+    return PluginInfo(
+        id=plugin.id,
+        slug=plugin.slug,
+        name=plugin.name,
+        description=plugin.description,
+        created_at=plugin.created_at,
+        updated_at=plugin.updated_at,
+        is_enabled=plugin.is_enabled,
+        current_version=current,
+        versions=versions,
+    )
+
+
+def _manifest_payload(manifest: PluginManifest) -> dict[str, object]:
+    return {
+        "name": manifest.name,
+        "version": manifest.version,
+        "slug": manifest.slug,
+        "entrypoint": manifest.entrypoint,
+        "description": manifest.description,
+        "schedule": manifest.schedule,
+        "source": manifest.source,
+        "runtime": manifest.runtime,
+    }
 
 
 @router.post("/upload", response_model=PluginInfo, status_code=status.HTTP_201_CREATED)
@@ -31,48 +84,81 @@ async def upload_plugin(
     try:
         data = base64.b64decode(payload.content)
     except (ValueError, binascii.Error) as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid base64 content") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid base64 content"
+        ) from exc
 
     try:
         manifest, target_dir = extract_plugin_archive(data)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    existing = db.query(Plugin).filter(Plugin.slug == manifest.slug).first()
-    if existing and existing.version == manifest.version:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Plugin version already uploaded")
+    plugin = (
+        db.query(Plugin)
+        .options(
+            selectinload(Plugin.versions),
+            selectinload(Plugin.current_version),
+        )
+        .filter(Plugin.slug == manifest.slug)
+        .first()
+    )
 
-    plugin = Plugin(
-        slug=manifest.slug,
-        name=manifest.name,
+    if plugin is None:
+        plugin = Plugin(
+            slug=manifest.slug,
+            name=manifest.name,
+            description=manifest.description,
+        )
+        db.add(plugin)
+        db.flush()
+    else:
+        # Keep metadata in sync with latest upload.
+        plugin.name = manifest.name
+        plugin.description = manifest.description
+
+    duplicate = next(
+        (version for version in plugin.versions if version.version == manifest.version),
+        None,
+    )
+    if duplicate:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Plugin version already uploaded",
+        )
+
+    version = PluginVersion(
+        plugin_id=plugin.id,
         version=manifest.version,
-        description=manifest.description,
         entrypoint=manifest.entrypoint,
         schedule=manifest.schedule,
-        manifest={
-            "name": manifest.name,
-            "version": manifest.version,
-            "slug": manifest.slug,
-            "entrypoint": manifest.entrypoint,
-            "description": manifest.description,
-            "schedule": manifest.schedule,
-            "source": manifest.source,
-            "runtime": manifest.runtime,
-        },
+        manifest=_manifest_payload(manifest),
         upload_path=str(target_dir),
-        is_active=False,
         status="uploaded",
+        is_active=False,
     )
-    db.add(plugin)
+
+    plugin.versions.append(version)
+    plugin.updated_at = datetime.now(timezone.utc)
     db.commit()
-    db.refresh(plugin)
-    return PluginInfo.model_validate(plugin)
+
+    refreshed = _load_plugin(db, plugin.id)
+    if refreshed is None:
+        raise HTTPException(status_code=500, detail="Failed to load plugin after upload")
+    return _plugin_to_schema(refreshed)
 
 
 @router.get("", response_model=PluginListResponse)
 def list_plugins(db: Session = Depends(get_db_session)) -> PluginListResponse:
-    plugins = db.query(Plugin).order_by(Plugin.created_at.desc()).all()
-    return PluginListResponse(items=[PluginInfo.model_validate(p) for p in plugins])
+    plugins = (
+        db.query(Plugin)
+        .options(
+            selectinload(Plugin.versions),
+            selectinload(Plugin.current_version),
+        )
+        .order_by(Plugin.created_at.desc())
+        .all()
+    )
+    return PluginListResponse(items=[_plugin_to_schema(plugin) for plugin in plugins])
 
 
 @router.post("/{plugin_id}/activate", response_model=PluginInfo)
@@ -81,34 +167,77 @@ def activate_plugin(
     payload: PluginActivateRequest,
     db: Session = Depends(get_db_session),
 ) -> PluginInfo:
-    plugin = db.query(Plugin).get(plugin_id)
-    if not plugin:
+    plugin = _load_plugin(db, plugin_id)
+    if plugin is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin not found")
 
+    now = datetime.now(timezone.utc)
+
     if payload.activate:
-        if not plugin.schedule:
+        if not plugin.versions:
+            raise HTTPException(status_code=400, detail="Plugin has no uploaded versions")
+        if payload.version_id:
+            target = next((v for v in plugin.versions if v.id == payload.version_id), None)
+            if target is None:
+                raise HTTPException(status_code=404, detail="Plugin version not found")
+        else:
+            target = plugin.current_version or plugin.versions[0]
+
+        if not target.schedule:
             raise HTTPException(status_code=400, detail="Plugin manifest missing schedule")
-        plugin.is_active = True
-        plugin.status = "active"
-        plugin.activated_at = datetime.now(timezone.utc)
-        plugin.next_run_at = compute_next_run(
-            plugin.schedule,
-            reference=plugin.activated_at,
-            immediate=True,
-        )
+
+        for version in plugin.versions:
+            if version.id == target.id:
+                version.is_active = True
+                version.status = "active"
+                version.activated_at = now
+                version.deactivated_at = None
+                version.next_run_at = compute_next_run(
+                    version.schedule,
+                    reference=now,
+                    immediate=True,
+                )
+            else:
+                version.is_active = False
+                if version.status == "active":
+                    version.status = "inactive"
+                version.deactivated_at = now
+                version.next_run_at = None
+
+        plugin.current_version = target
+        plugin.is_enabled = True
     else:
-        plugin.is_active = False
-        plugin.status = "inactive"
+        plugin.is_enabled = False
+        plugin.current_version = None
+        for version in plugin.versions:
+            version.is_active = False
+            if version.status == "active":
+                version.status = "inactive"
+            version.deactivated_at = now
+            version.next_run_at = None
+
+    plugin.updated_at = now
     db.commit()
-    db.refresh(plugin)
-    return PluginInfo.model_validate(plugin)
+
+    refreshed = _load_plugin(db, plugin_id)
+    if refreshed is None:
+        raise HTTPException(status_code=500, detail="Failed to load plugin after update")
+    return _plugin_to_schema(refreshed)
 
 
 @router.post("/run-once", response_model=PluginListResponse)
 def trigger_run_once(db: Session = Depends(get_db_session)) -> PluginListResponse:
     run_plugins_once()
-    plugins = db.query(Plugin).order_by(Plugin.created_at.desc()).all()
-    return PluginListResponse(items=[PluginInfo.model_validate(p) for p in plugins])
+    plugins = (
+        db.query(Plugin)
+        .options(
+            selectinload(Plugin.versions),
+            selectinload(Plugin.current_version),
+        )
+        .order_by(Plugin.created_at.desc())
+        .all()
+    )
+    return PluginListResponse(items=[_plugin_to_schema(plugin) for plugin in plugins])
 
 
 @router.get("/runs", response_model=list[PluginRunInfo])
@@ -117,19 +246,23 @@ def list_plugin_runs(
     db: Session = Depends(get_db_session),
 ) -> list[PluginRunInfo]:
     runs = (
-        db.query(PluginRun, Plugin.slug)
+        db.query(PluginRun, Plugin.slug, PluginVersion.version)
         .join(Plugin, Plugin.id == PluginRun.plugin_id)
+        .outerjoin(PluginVersion, PluginVersion.id == PluginRun.plugin_version_id)
         .order_by(PluginRun.started_at.desc())
         .limit(max(1, min(limit, 100)))
         .all()
     )
+
     payload: list[PluginRunInfo] = []
-    for run, slug in runs:
+    for run, slug, version in runs:
         payload.append(
             PluginRunInfo(
                 id=run.id,
                 plugin_id=run.plugin_id,
                 plugin_slug=slug,
+                plugin_version_id=run.plugin_version_id,
+                plugin_version=version,
                 status=run.status,
                 message=run.message,
                 started_at=run.started_at,

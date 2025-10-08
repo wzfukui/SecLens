@@ -2,7 +2,7 @@
 {% block content %}
 <section class="static-page">
     <h2>{{ bulletin.title }}</h2>
-    <p style="color:#475569; margin-top:0.5rem;">
+    <p class="detail-meta">
         来源：{{ bulletin.source_slug }}
         {% if bulletin.published_at %} · 发布时间 {{ bulletin.published_at.strftime('%Y-%m-%d %H:%M UTC') }}{% endif %}
         {% if bulletin.fetched_at %} · 抓取时间 {{ bulletin.fetched_at.strftime('%Y-%m-%d %H:%M UTC') }}{% endif %}
@@ -18,7 +18,7 @@
 
     {% if bulletin.body_text and bulletin.body_text != bulletin.summary %}
         <h3>正文</h3>
-        <p style="white-space:pre-line;">{{ bulletin.body_text }}</p>
+        <p class="detail-body">{{ bulletin.body_text }}</p>
     {% endif %}
 
     {% if bulletin.labels %}

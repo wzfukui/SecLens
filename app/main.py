@@ -1,13 +1,18 @@
 """FastAPI application entrypoint."""
 from datetime import datetime, timezone
-from sqlalchemy import func
+import json
+from functools import lru_cache
 from pathlib import Path
+from typing import Optional
+
+from sqlalchemy import func
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app import crud
 from app.services import build_home_sections, HomeSection, SourceSection
@@ -20,15 +25,39 @@ from app.models import Plugin, Bulletin
 
 
 TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+ASSET_DIST_DIR = STATIC_DIR / "dist"
+ASSET_MANIFEST_PATH = ASSET_DIST_DIR / "manifest.json"
+
+
+@lru_cache(maxsize=1)
+def _load_asset_manifest() -> dict[str, str]:
+    if ASSET_MANIFEST_PATH.exists():
+        try:
+            return json.loads(ASSET_MANIFEST_PATH.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return {}
+    return {}
+
+
+def static_asset_url(filename: str) -> str:
+    manifest = _load_asset_manifest()
+    target = manifest.get(filename, filename)
+    return f"/static/dist/{target}"
 
 
 def create_app() -> FastAPI:
     app = FastAPI(title="SecLens Ingest API", version="0.1.0")
     templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
+    templates.env.globals["static_asset_url"] = static_asset_url
     start_scheduler(app)
+    if STATIC_DIR.exists():
+        app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     @app.on_event("startup")
     def startup_event() -> None:
+        _load_asset_manifest.cache_clear()
+        _load_asset_manifest()
         engine = get_engine()
         Base.metadata.create_all(bind=engine)
 
@@ -86,6 +115,7 @@ def create_app() -> FastAPI:
             "selected_source": selected_source,
             "limit": limit,
             "all_total": all_total,
+            "page_id": "home",
         }
         return templates.TemplateResponse(request=request, name="index.html", context=context)
     @app.get("/docs", response_class=HTMLResponse, tags=["pages"])
@@ -93,7 +123,7 @@ def create_app() -> FastAPI:
         return templates.TemplateResponse(
             request=request,
             name="docs.html",
-            context={"title": "插件规范与示例"},
+            context={"title": "插件规范与示例", "page_id": "docs"},
         )
 
     @app.get("/help", response_class=HTMLResponse, tags=["pages"])
@@ -101,7 +131,7 @@ def create_app() -> FastAPI:
         return templates.TemplateResponse(
             request=request,
             name="help.html",
-            context={"title": "平台工作流程"},
+            context={"title": "平台工作流程", "page_id": "help"},
         )
 
     @app.get("/about", response_class=HTMLResponse, tags=["pages"])
@@ -109,7 +139,7 @@ def create_app() -> FastAPI:
         return templates.TemplateResponse(
             request=request,
             name="about.html",
-            context={"title": "关于 SecLens"},
+            context={"title": "关于 SecLens", "page_id": "about"},
         )
 
     @app.get("/login", response_class=HTMLResponse, tags=["pages"])
@@ -117,19 +147,27 @@ def create_app() -> FastAPI:
         return templates.TemplateResponse(
             request=request,
             name="login.html",
-            context={"title": "登录"},
+            context={"title": "登录", "page_id": "login"},
         )
 
     @app.get("/dashboard/plugins", response_class=HTMLResponse, tags=["pages"])
     def plugin_dashboard(request: Request, db: Session = Depends(get_db_session)) -> HTMLResponse:
-        plugin_rows = db.query(Plugin).order_by(Plugin.slug.asc()).all()
+        plugin_rows = (
+            db.query(Plugin)
+            .options(
+                selectinload(Plugin.current_version),
+                selectinload(Plugin.versions),
+            )
+            .order_by(Plugin.slug.asc())
+            .all()
+        )
         counts = dict(
             db.query(Bulletin.source_slug, func.count(Bulletin.id))
             .group_by(Bulletin.source_slug)
             .all()
         )
 
-        def fmt(dt: datetime | None) -> str | None:
+        def fmt(dt: Optional[datetime]) -> Optional[str]:
             if not dt:
                 return None
             return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -139,29 +177,39 @@ def create_app() -> FastAPI:
         failed = 0
         total_collected = 0
         for plugin in plugin_rows:
-            if plugin.is_active:
+            current = plugin.current_version
+            latest = current or (plugin.versions[0] if plugin.versions else None)
+            status = (latest.status if latest else "uploaded") or "uploaded"
+            is_running = bool(plugin.is_enabled and current and current.is_active)
+            if is_running:
                 active += 1
-            if plugin.status == "failed":
+            if any(version.status == "failed" for version in plugin.versions):
                 failed += 1
-            status_display = {
-                "active": "运行中" if plugin.is_active else "已停用",
-                "inactive": "已停用",
-                "failed": "运行异常",
-                "uploaded": "待激活",
-            }.get(plugin.status, plugin.status)
+
+            def status_display() -> str:
+                if not plugin.is_enabled:
+                    return "已禁用"
+                return {
+                    "active": "运行中",
+                    "inactive": "已停用",
+                    "failed": "运行异常",
+                    "uploaded": "待激活",
+                    "disabled": "已禁用",
+                }.get(status, status)
+
             collected = counts.get(plugin.slug, 0)
             total_collected += collected
             plugins_payload.append(
                 {
                     "slug": plugin.slug,
                     "name": plugin.name,
-                    "version": plugin.version,
-                    "status": plugin.status,
-                    "status_display": status_display,
-                    "is_active": plugin.is_active,
-                    "schedule": plugin.schedule,
-                    "last_run_at": fmt(plugin.last_run_at) or "—",
-                    "next_run_at": fmt(plugin.next_run_at) or "—",
+                    "version": latest.version if latest else "—",
+                    "status": status,
+                    "status_display": status_display(),
+                    "is_active": is_running,
+                    "schedule": (current.schedule if current else latest.schedule if latest else None) or "—",
+                    "last_run_at": fmt(current.last_run_at if current else None) or "—",
+                    "next_run_at": fmt(current.next_run_at if current else None) or "—",
                     "created_at": fmt(plugin.created_at) or "—",
                     "total_items": collected,
                 }
@@ -182,6 +230,7 @@ def create_app() -> FastAPI:
                 "header": "插件运行监控",
                 "summary": summary,
                 "plugins": plugins_payload,
+                "page_id": "plugins-dashboard",
             },
         )
 
@@ -198,6 +247,7 @@ def create_app() -> FastAPI:
                 "title": bulletin_data.title,
                 "header": "情报详情",
                 "bulletin": bulletin_data,
+                "page_id": "bulletin-detail",
             },
         )
 

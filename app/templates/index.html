@@ -106,7 +106,7 @@
     </section>
 </div>
 
-<div class="modal-backdrop" id="rss-modal">
+<div class="modal-backdrop" id="rss-modal" data-visible="false">
     <div class="modal">
         <h3>订阅来源 RSS</h3>
         <p id="rss-modal-desc"></p>
@@ -118,179 +118,11 @@
     </div>
 </div>
 
-<script>
-    const modal = document.getElementById('rss-modal');
-    const modalDesc = document.getElementById('rss-modal-desc');
-    const modalLink = document.getElementById('rss-modal-link');
-    const copyBtn = document.getElementById('rss-copy');
-    const closeBtn = document.getElementById('rss-close');
-
-    const attachRssHandlers = (root = document) => {
-        root.querySelectorAll('.rss-button').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const sourceTitle = btn.dataset.source;
-                const slug = btn.dataset.slug;
-                const origin = window.location.origin;
-                const url = `${origin}/v1/bulletins/rss?source_slug=${slug}`;
-                modalDesc.textContent = `${sourceTitle} RSS 订阅地址`;
-                modalLink.textContent = url;
-                modal.style.display = 'flex';
-                copyBtn.onclick = () => {
-                    navigator.clipboard.writeText(url).then(() => {
-                        copyBtn.textContent = '已复制';
-                        setTimeout(() => (copyBtn.textContent = '复制链接'), 1500);
-                    });
-                };
-            });
-        });
-    };
-    attachRssHandlers();
-
-    const closeModal = () => {
-        modal.style.display = 'none';
-        copyBtn.textContent = '复制链接';
-    };
-
-    closeBtn.addEventListener('click', closeModal);
-    modal.addEventListener('click', (event) => {
-        if (event.target === modal) {
-            closeModal();
-        }
-    });
-
-    const attachExcerptHandlers = (root = document) => {
-        root.querySelectorAll('.excerpt').forEach(container => {
-            const button = container.querySelector('.toggle-more');
-            const paragraph = container.querySelector('p');
-            const snippetNode = container.querySelector('.snippet-text');
-            const fullNode = container.querySelector('.full-text');
-            const showMore = container.dataset.showMore === 'true';
-            if (!showMore || !paragraph || !snippetNode || !fullNode) {
-                if (button && !showMore) button.remove();
-                return;
-            }
-            const snippetText = snippetNode.textContent.trim();
-            const fullText = fullNode.textContent.trim();
-            button.addEventListener('click', () => {
-                const expanded = container.dataset.expanded === 'true';
-                if (!expanded) {
-                    paragraph.textContent = fullText;
-                    button.textContent = '收起';
-                    container.dataset.expanded = 'true';
-                } else {
-                    paragraph.textContent = snippetText;
-                    const ellipsis = document.createElement('span');
-                    ellipsis.className = 'ellipsis';
-                    ellipsis.textContent = '…';
-                    paragraph.appendChild(ellipsis);
-                    button.textContent = '更多';
-                    container.dataset.expanded = 'false';
-                }
-            });
-        });
-    };
-    attachExcerptHandlers();
-
-    const listEl = document.getElementById('bulletin-list');
-    const sentinel = document.getElementById('scroll-sentinel');
-    if (listEl && sentinel) {
-        const sourceSlug = listEl.dataset.source || 'all';
-        const total = parseInt(listEl.dataset.total || '0', 10);
-        const limit = parseInt(listEl.dataset.limit || '20', 10);
-        let offset = parseInt(listEl.dataset.offset || '0', 10);
-        let loading = false;
-
-        const formatUtc = (isoString) => {
-            if (!isoString) return '';
-            const date = new Date(isoString);
-            if (Number.isNaN(date.getTime())) return '';
-            const pad = (val) => String(val).padStart(2, '0');
-            return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())} UTC`;
-        };
-
-        const buildCard = (bulletin) => {
-            const li = document.createElement('li');
-            li.className = 'bulletin-card';
-            const summary = bulletin.summary || bulletin.body_text || '';
-            const snippet = summary.slice(0, 360);
-            const showMore = summary.length > 360;
-
-            li.innerHTML = `
-                <h2><a href="/bulletins/${bulletin.id}">${bulletin.title}</a></h2>
-                <div class="meta">
-                    ${bulletin.published_at ? `发布时间 ${formatUtc(bulletin.published_at)}` : ''}
-                    ${bulletin.fetched_at ? `抓取时间 ${formatUtc(bulletin.fetched_at)}` : ''}
-                </div>
-                ${summary ? `
-                <div class="excerpt" data-expanded="false" data-show-more="${showMore}">
-                    <p>${snippet}${showMore ? '<span class="ellipsis">…</span>' : ''}</p>
-                    <div class="snippet-text" hidden>${snippet}</div>
-                    <div class="full-text" hidden>${summary}</div>
-                    ${showMore ? '<button class="toggle-more" type="button">更多</button>' : ''}
-                </div>` : ''}
-                ${bulletin.extra ? `
-                <details class="extra-details">
-                    <summary>扩展字段</summary>
-                    <dl class="extra-table">
-                        ${Object.entries(bulletin.extra).map(([key, value]) => `
-                        <div class="extra-row">
-                            <dt>${key.replace(/_/g, ' ')}</dt>
-                            <dd>${JSON.stringify(value)}</dd>
-                        </div>`).join('')}
-                    </dl>
-                </details>` : ''}
-                <div class="tags">
-                    <span class="tag">${bulletin.source_slug}</span>
-                    ${(bulletin.labels || []).map(label => `<span class="tag">${label}</span>`).join('')}
-                    ${(bulletin.topics || []).map(topic => `<span class="tag">${topic}</span>`).join('')}
-                </div>
-            `;
-            return li;
-        };
-
-        const loadMore = async () => {
-            if (loading || offset >= total) return;
-            loading = true;
-            const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-            if (sourceSlug !== 'all') {
-                params.append('source_slug', sourceSlug);
-            }
-            try {
-                const resp = await fetch(`/v1/bulletins?${params.toString()}`);
-                if (!resp.ok) throw new Error('请求失败');
-                const data = await resp.json();
-                const items = data.items || [];
-                items.forEach(item => {
-                    const card = buildCard(item);
-                    listEl.appendChild(card);
-                    attachExcerptHandlers(card);
-                });
-                offset += items.length;
-                listEl.dataset.offset = String(offset);
-                if (offset >= data.pagination.total || items.length === 0) {
-                    observer.disconnect();
-                    sentinel.remove();
-                }
-            } catch (error) {
-                console.error(error);
-            } finally {
-                loading = false;
-            }
-        };
-
-        const observer = new IntersectionObserver(entries => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    loadMore();
-                }
-            });
-        }, { rootMargin: '0px 0px 200px 0px' });
-
-        if (offset < total) {
-            observer.observe(sentinel);
-        } else {
-            sentinel.remove();
-        }
-    }
-</script>
+<div class="source-cache" hidden aria-hidden="true">
+    {% for section in sections %}
+        {% for source in section.sources %}
+            <span>{{ source.title }}</span>
+        {% endfor %}
+    {% endfor %}
+</div>
 {% endblock %}

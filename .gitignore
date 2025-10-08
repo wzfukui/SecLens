@@ -22,6 +22,12 @@ Thumbs.db
 .eggs/
 dist/
 build/
+node_modules/
+frontend/.vite/
+app/static/dist/*
+!app/static/dist/bundle.css
+!app/static/dist/bundle.js
+!app/static/dist/manifest.json
 
 # Test / Coverage
 .coverage

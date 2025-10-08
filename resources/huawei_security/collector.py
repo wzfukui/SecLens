@@ -21,7 +21,7 @@ DEFAULT_HEADERS = {
 }
 
 
-@dataclass(slots=True)
+@dataclass
 class FetchParams:
     page_index: int = 1
     page_size: int = 20

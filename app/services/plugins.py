@@ -12,12 +12,12 @@ from pathlib import Path
 from typing import Any, Callable
 from zipfile import ZipFile
 
-from app.models import Plugin
+from app.models import PluginVersion
 UPLOAD_ROOT = Path(__file__).resolve().parents[1] / "plugins" / "uploads"
 MANIFEST_NAME = "manifest.json"
 
 
-@dataclass(slots=True)
+@dataclass
 class PluginManifest:
     slug: str
     name: str
@@ -100,25 +100,25 @@ def compute_next_run(
             return None
 
 
-def should_run(plugin: Plugin, *, now: datetime | None = None) -> bool:
+def should_run(version: PluginVersion, *, now: datetime | None = None) -> bool:
     now = now or datetime.now(timezone.utc)
-    if not plugin.is_active:
+    if not version.is_active:
         return False
-    if not plugin.schedule:
+    if not version.schedule:
         return False
-    if plugin.next_run_at is None:
-        plugin.next_run_at = compute_next_run(plugin.schedule, now)
+    if version.next_run_at is None:
+        version.next_run_at = compute_next_run(version.schedule, now)
         return False
-    return plugin.next_run_at <= now
+    return version.next_run_at <= now
 
 
-def load_callable(plugin: Plugin) -> Callable[..., Any]:
-    module_path, _, attr = plugin.entrypoint.partition(":")
+def load_callable(version: PluginVersion) -> Callable[..., Any]:
+    module_path, _, attr = version.entrypoint.partition(":")
     if not attr:
         raise ValueError("Entrypoint must be in the form 'module:callable'")
 
-    plugin_dir = Path(plugin.upload_path)
-    if plugin_dir.exists() and str(plugin_dir) not in sys.path:  # type: ignore[name-defined]
+    plugin_dir = Path(version.upload_path)
+    if plugin_dir.exists() and str(plugin_dir) not in sys.path:
         sys.path.insert(0, str(plugin_dir))
 
     module = import_module(module_path)

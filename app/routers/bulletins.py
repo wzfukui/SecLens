@@ -1,5 +1,6 @@
 """Read-only bulletin APIs."""
 from datetime import datetime
+from typing import Optional
 
 from email.utils import format_datetime
 from xml.etree import ElementTree as ET
@@ -49,12 +50,18 @@ def get_home_sections(
 
 @router.get("", response_model=BulletinListResponse)
 def list_bulletins(
-    source_slug: str | None = Query(default=None, description="Filter by collector source slug"),
-    label: str | None = Query(default=None, description="Filter bulletins that include this label"),
-    topic: str | None = Query(default=None, description="Filter bulletins tagged with this topic"),
-    since: datetime | None = Query(default=None, description="Only bulletins published at or after this time"),
-    until: datetime | None = Query(default=None, description="Only bulletins published before or at this time"),
-    text: str | None = Query(default=None, description="Match text within bulletin titles"),
+    source_slug: Optional[str] = Query(default=None, description="Filter by collector source slug"),
+    label: Optional[str] = Query(default=None, description="Filter bulletins that include this label"),
+    topic: Optional[str] = Query(default=None, description="Filter bulletins tagged with this topic"),
+    since: Optional[datetime] = Query(
+        default=None,
+        description="Only bulletins published at or after this time",
+    ),
+    until: Optional[datetime] = Query(
+        default=None,
+        description="Only bulletins published before or at this time",
+    ),
+    text: Optional[str] = Query(default=None, description="Match text within bulletin titles"),
     limit: int = Query(default=20, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db_session),
@@ -81,7 +88,7 @@ def list_bulletins(
 @router.get("/rss", response_class=Response, tags=["rss"])
 def bulletins_rss(
     limit: int = Query(default=20, ge=1, le=100),
-    source_slug: str | None = Query(default=None),
+    source_slug: Optional[str] = Query(default=None),
     db: Session = Depends(get_db_session),
 ) -> Response:
     """Generate an RSS feed for recent bulletins."""

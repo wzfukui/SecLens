@@ -27,7 +27,7 @@ CHINA_TZ = timezone(timedelta(hours=8))
 ASYNC_DATA_PATTERN = re.compile(r"window\['__ASYNC_DATA__'\]\s*=\s*(\[[\s\S]*\])", re.MULTILINE)
 
 
-@dataclass(slots=True)
+@dataclass
 class AnnouncementSummary:
     announce_id: str
     title: str
@@ -38,7 +38,7 @@ class AnnouncementSummary:
     announce_type: str | None
 
 
-@dataclass(slots=True)
+@dataclass
 class AnnouncementDetail:
     summary: AnnouncementSummary
     content_html: str | None

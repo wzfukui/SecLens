@@ -21,7 +21,7 @@ SOURCE_FILE = Path(__file__).resolve().with_name("source.txt")
 STATE_FILE_NAME = ".cursor"
 
 
-@dataclass(slots=True)
+@dataclass
 class FeedEntry:
     notice_id: str
     title: str

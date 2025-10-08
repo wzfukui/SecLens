@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from collectors.huawei import HuaweiCollector
+from resources.huawei_security.collector import HuaweiCollector
 
 
 def test_normalize_huawei_record():

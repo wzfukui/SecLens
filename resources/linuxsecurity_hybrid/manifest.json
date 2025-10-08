@@ -1,0 +1,22 @@
+{
+  "slug": "linuxsecurity_hybrid",
+  "name": "LinuxSecurity.com Hybrid Collector",
+  "version": "1.0.0",
+  "entrypoint": "collector:run",
+  "description": "Collects combined advisories, features, and news from LinuxSecurity.com hybrid RSS feed.",
+  "schedule": "3600",
+  "source": {
+    "publisher": "LinuxSecurity.com",
+    "homepage": "https://linuxsecurity.com/",
+    "feed_url": "https://linuxsecurity.com/linuxsecurity_hybrid.xml"
+  },
+  "runtime": {},
+  "ui": {
+    "group_slug": "security_news",
+    "group_title": "安全新闻",
+    "group_description": "媒体与安全团队对热点事件的报道。",
+    "group_order": 40,
+    "source_title": "LinuxSecurity.com",
+    "source_order": 20
+  }
+}

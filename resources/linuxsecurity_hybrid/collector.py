@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-from typing import Iterable, List, Sequence
+from typing import List, Sequence
 import xml.etree.ElementTree as ET
 
 import requests
@@ -37,17 +37,17 @@ def _parse_pub_date(value: str | None) -> datetime | None:
     return dt.astimezone(timezone.utc)
 
 
-def _get_trimmed_text(text: str | None) -> str | None:
+def _trim(text: str | None) -> str | None:
     if not text:
         return None
     cleaned = text.strip()
     return cleaned or None
 
 
-def _find_encoded_content(item: ET.Element) -> str | None:
-    for child in item:
+def _find_encoded(node: ET.Element) -> str | None:
+    for child in node:
         if child.tag.lower().endswith("encoded"):
-            return _get_trimmed_text(child.text)
+            return _trim(child.text)
     return None
 
 
@@ -63,10 +63,7 @@ class LinuxSecurityCollector:
         response.raise_for_status()
         root = ET.fromstring(response.content)
         channel = root.find("channel")
-        if channel is None:
-            items = root.findall(".//item")
-        else:
-            items = list(channel.findall("item"))
+        items = channel.findall("item") if channel is not None else root.findall(".//item")
 
         serialized: list[dict] = []
         for item in items:
@@ -76,22 +73,22 @@ class LinuxSecurityCollector:
         return serialized
 
     def _serialize_item(self, item: ET.Element) -> dict:
-        guid_element = item.find("guid")
+        guid_node = item.find("guid")
         categories = [
-            _get_trimmed_text(cat.text)
+            _trim(cat.text)
             for cat in item.findall("category")
-            if _get_trimmed_text(cat.text)
+            if _trim(cat.text)
         ]
-        description = _get_trimmed_text(item.findtext("description"))
-        encoded = _find_encoded_content(item)
+        description = _trim(item.findtext("description"))
+        encoded = _find_encoded(item)
         return {
-            "title": _get_trimmed_text(item.findtext("title")) or "",
-            "link": _get_trimmed_text(item.findtext("link")),
+            "title": _trim(item.findtext("title")) or "",
+            "link": _trim(item.findtext("link")),
             "description": description,
             "content_encoded": encoded,
-            "guid": _get_trimmed_text(guid_element.text if guid_element is not None else None),
-            "guid_attributes": dict(guid_element.attrib) if guid_element is not None else {},
-            "pub_date": _get_trimmed_text(item.findtext("pubDate")),
+            "guid": _trim(guid_node.text if guid_node is not None else None),
+            "guid_attributes": dict(guid_node.attrib) if guid_node is not None else {},
+            "pub_date": _trim(item.findtext("pubDate")),
             "categories": categories,
             "raw_xml": ET.tostring(item, encoding="unicode"),
         }
@@ -129,7 +126,7 @@ class LinuxSecurityCollector:
         raw_payload = {
             key: value
             for key, value in item.items()
-            if key not in {"raw_xml"}
+            if key != "raw_xml"
         }
         if item.get("raw_xml"):
             raw_payload["raw_xml"] = item["raw_xml"]

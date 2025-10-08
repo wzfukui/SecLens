@@ -2,8 +2,8 @@
 
 ## Project Structure & Module Organization
 - `app/` holds the FastAPI application (routers, schemas, services) and starts at `app/main.py`.
-- `collectors/` contains source-specific plugins; each plugin maintains its own state and exposes a `run()` entry point.
-- `tests/` mirrors the `app/` and `collectors/` layout with matching module names.
+- `resources/<slug>/` stores packaged plugins (manifest + collector + assets) that mirror the upload format.
+- `tests/` mirrors the application and plugin layout with matching module names.
 - `scripts/` hosts one-off utilities such as local ingestion runners or data migration helpers.
 - Configuration examples live in `.env.example`; keep environment-specific overrides in `.env` (never commit).
 - Refer to `ROADMAP.md` for the active重构计划、里程碑与当前优先级；提交前请同步检查路线图是否需要更新。
@@ -12,7 +12,7 @@
 - `python -m venv .venv && source .venv/bin/activate` sets up and activates the virtual environment.
 - `pip install -r requirements.txt` installs API, collector, and tooling dependencies.
 - `uvicorn app.main:app --reload` runs the API locally with hot reload.
-- `python scripts/run_collector.py --source aliyun` executes a single collector against the ingest API.
+- `python scripts/run_plugin.py --source aliyun_security` executes a single插件 against the ingest API.
 - `pytest` runs the entire test suite; add `-k name` to target a subset.
 - 前端资产将在重构阶段迁移至 `frontend/`（待建）目录并通过构建工具打包；请在运行 API 之前执行 `npm run build`（命令细节见 `ROADMAP.md` 更新）。
 
@@ -26,7 +26,7 @@
 ## Testing Guidelines
 - Use `pytest` with fixtures under `tests/fixtures` for shared setup (database, HTTP mocks).
 - Name test files `test_<module>.py` and ensure each new feature has unit coverage plus an ingestion happy-path test.
-- Integrate `pytest --cov=app --cov=collectors` in CI; target ≥80% coverage for core modules.
+- Integrate `pytest --cov=app --cov=resources` in CI; target ≥80% coverage for核心模块。
 - 对前端交互新增 Playwright/组件级测试时，需要在 `tests/ui/` 下维护并在 CI 中执行。
 
 ## Commit & Pull Request Guidelines
@@ -43,31 +43,38 @@
 - 新的插件运行框架将通过集中配置管理密钥；在迁移完成前避免在插件内直接请求外部存储。
 
 ## Plugin Development Workflow
-1. **Scope & Source Review**
-   - Confirm whether the new feed should live under `collectors/` (ad-hoc scripts) or `resources/<source>/` (packaged plugin).
-   - Inspect the target API/RSS format (sample payload, pagination, auth, rate limits). Capture revision semantics early (e.g., `guid` + `Revision`).
+1. **Planning**
+   - 评估数据源（API、RSS、网页）：确认认证、频率限制、分页/增量策略，并收集样本记录（尤其用于生成稳定 `external_id`）。
+   - 确定插件 slug（小写+下划线），在 manifest、`SourceInfo.source_slug`、`scripts/run_plugin.py` 中保持一致。
 
-2. **Schema & Normalization Plan**
-   - Map source fields to `BulletinCreate` (`SourceInfo`, `ContentInfo`, `labels`, `topics`, `extra`, `raw`). Reuse helper utilities (date parsing, JSON parsing) where possible.
-   - Decide on canonical `source_slug`, topic/label conventions (align with `app/catalog.py`), and any cursor or state requirements.
+2. **Skeleton**
+   - 新建 `resources/<slug>/`，至少包含：
+     - `collector.py`：采集实现。
+     - `manifest.json`：元数据、调度、UI 配置（`group_slug`、`source_title` 等）。
+     - `__init__.py`：可留空。
+   - 若需要本地状态/游标，约定路径并在 manifest `runtime` 或代码注释说明。
 
-3. **Implementation**
-   - Create `<source>.py` with a lightweight collector class:
-     - `fetch(...)` returns raw entries; encapsulate HTTP session setup (headers, timeouts, retries if needed).
-     - `normalize(...)` converts a raw item to `BulletinCreate`, including deduplicated labels/topics and `extra/raw` payloads.
-     - `collect(...)` orchestrates fetch + normalize; expose top-level `run(...)` that optionally posts to ingest API (keep consistent with existing collectors).
-   - Guard against parsing failures with defensive checks and fallbacks.
+3. **Collector Implementation**
+   - 使用 dataclass `FetchParams` 定义可配置参数。
+   - `fetch(...)` 负责网络请求，封装 headers、超时、分页，必要时加入重试与错误处理。
+   - `_serialize_item(...)`（可选）先裁剪原始字段。
+   - `normalize(...)` 输出 `BulletinCreate`：
+     - 保证标题、摘要、正文、发布时间存在合理 fallback。
+     - `labels`/`topics` 去重并与 `app/catalog.py` 中的分组保持一致。
+     - 将源特有信息放入 `extra`，保留原始数据于 `raw`。
+   - `collect(...)` + `run(...)`：聚合 fetch + normalize，并支持可选 ingest。
 
-4. **CLI / Metadata Wiring**
-   - Register the collector in `scripts/run_collector.py` (`--source` choice, params).
-   - Update `info_source.yaml` (and `resources/*/manifest.json` if applicable) so the new source surfaces in documentation/UI.
+4. **Manifest & CLI**
+   - `manifest.json` 设置 `entrypoint: "collector:run"`、`schedule`（秒）、`source` 元信息以及 `ui` 配置，以驱动首页分组与来源。
+   - 在 `scripts/run_plugin.py` 的 `--source` choices 中注册新 slug。
+   - 更新 `info_source.yaml` 与相关帮助文档，说明数据来源和用途。
 
 5. **Testing**
-   - Add `tests/collectors/test_<source>.py` containing a normalization unit test (representative sample payload + assertions on slug, external_id, topics/labels, extras).
-   - When the collector persists state/cursors, include tests covering edge cases (e.g., duplicate filtering, revision bumps).
-   - Run `pytest tests/collectors/test_<source>.py` (or the full suite) before committing.
+   - 在 `tests/collectors/test_<slug>.py` 编写规范化测试，验证 slug、`external_id`、topics/labels、发布时间等关键字段。
+   - 对游标或增量逻辑补充单元测试覆盖边界场景。
+   - 运行 `pytest tests/collectors/test_<slug>.py`（或 `pytest tests/collectors`）保证绿灯。
 
 6. **Verification & Documentation**
-   - Optionally run the collector through `python scripts/run_collector.py --source <source> --force` against a local ingest endpoint to confirm end-to-end behavior.
-   - Note any manual validation steps or source-specific caveats in commit/PR description.
-   - For follow-up maintenance, document topic/label mappings and cursor files in the collector header comments when they deviate from the default pattern.
+   - 手动执行 `python scripts/run_plugin.py --source <slug> --ingest-url ... --force` 验证端到端流程。
+   - 在提交说明里记录数据映射、验证步骤、速率限制等注意事项。
+  - 若插件需要额外依赖或环境变量，请在 manifest `runtime` 与文档中注明，便于后续维护。

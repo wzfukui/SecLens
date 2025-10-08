@@ -1,0 +1,22 @@
+{
+  "slug": "msrc_update_guide",
+  "name": "MSRC Security Update Guide Collector",
+  "version": "1.0.0",
+  "entrypoint": "collector:run",
+  "description": "Fetches vulnerability revisions and advisories from the Microsoft Security Response Center RSS feed.",
+  "schedule": "3600",
+  "source": {
+    "publisher": "Microsoft",
+    "homepage": "https://msrc.microsoft.com/update-guide/",
+    "feed_url": "https://api.msrc.microsoft.com/update-guide/rss"
+  },
+  "runtime": {},
+  "ui": {
+    "group_slug": "vulnerability_alerts",
+    "group_title": "漏洞预警",
+    "group_description": "官方与权威渠道发布的安全漏洞与补丁通知。",
+    "group_order": 10,
+    "source_title": "MSRC 更新指南",
+    "source_order": 50
+  }
+}

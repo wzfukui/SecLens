@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from collectors.aliyun import AliyunCollector
+from resources.aliyun_security.collector import AliyunCollector
 
 
 def test_normalize_builds_expected_schema():

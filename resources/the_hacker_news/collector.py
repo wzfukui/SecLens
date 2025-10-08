@@ -1,17 +1,17 @@
-"""Microsoft Security Response Center (MSRC) update guide collector."""
+"""The Hacker News RSS collector."""
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-from typing import Iterable, List, Sequence
+from typing import List, Sequence
 import xml.etree.ElementTree as ET
 
 import requests
 
 from app.schemas import BulletinCreate, ContentInfo, SourceInfo
 
-FEED_URL = "https://api.msrc.microsoft.com/update-guide/rss"
+DEFAULT_FEED_URL = "https://feeds.feedburner.com/TheHackersNews"
 USER_AGENT = "SecLensCollector/0.1"
 REQUEST_HEADERS = {
     "Accept": "application/rss+xml, application/xml;q=0.9, */*;q=0.8",
@@ -21,7 +21,7 @@ REQUEST_HEADERS = {
 
 @dataclass
 class FetchParams:
-    feed_url: str = FEED_URL
+    feed_url: str = DEFAULT_FEED_URL
     limit: int | None = None
 
 
@@ -30,28 +30,29 @@ def _parse_pub_date(value: str | None) -> datetime | None:
         return None
     try:
         dt = parsedate_to_datetime(value)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt.astimezone(timezone.utc)
     except (TypeError, ValueError):
         return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
-def _get_text(element: ET.Element | None) -> str | None:
-    if element is None:
+def _trim(text: str | None) -> str | None:
+    if not text:
         return None
-    text = element.text or ""
-    text = text.strip()
-    return text or None
+    cleaned = text.strip()
+    return cleaned or None
 
 
-def _iter_items(channel: ET.Element) -> Iterable[ET.Element]:
-    for item in channel.findall("item"):
-        yield item
+def _find_encoded(node: ET.Element) -> str | None:
+    for child in node:
+        if child.tag.lower().endswith("encoded"):
+            return _trim(child.text)
+    return None
 
 
-class MsrcCollector:
-    """Collector that normalizes MSRC Security Update Guide RSS items."""
+class HackerNewsCollector:
+    """Collector that normalizes The Hacker News RSS feed."""
 
     def __init__(self, session: requests.Session | None = None) -> None:
         self.session = session or requests.Session()
@@ -62,79 +63,70 @@ class MsrcCollector:
         response.raise_for_status()
         root = ET.fromstring(response.content)
         channel = root.find("channel")
-        if channel is None:
-            items_root = root.findall(".//item")
-            return [self._serialize_item(item) for item in items_root[: params.limit or None]]
+        items = channel.findall("item") if channel is not None else root.findall(".//item")
 
-        serialized_items: list[dict] = []
-        for item in _iter_items(channel):
-            serialized_items.append(self._serialize_item(item))
-            if params.limit and len(serialized_items) >= params.limit:
+        serialized: list[dict] = []
+        for item in items:
+            serialized.append(self._serialize_item(item))
+            if params.limit and len(serialized) >= params.limit:
                 break
-        return serialized_items
+        return serialized
 
     def _serialize_item(self, item: ET.Element) -> dict:
-        guid_element = item.find("guid")
+        guid_node = item.find("guid")
         categories = [
-            _get_text(category)
-            for category in item.findall("category")
-            if _get_text(category)
+            _trim(cat.text)
+            for cat in item.findall("category")
+            if _trim(cat.text)
         ]
-        serialized = {
-            "title": _get_text(item.find("title")),
-            "link": _get_text(item.find("link")),
-            "description": _get_text(item.find("description")),
-            "guid": _get_text(guid_element),
-            "guid_attributes": dict(guid_element.attrib) if guid_element is not None else {},
-            "pub_date": _get_text(item.find("pubDate")),
+        description = _trim(item.findtext("description"))
+        encoded = _find_encoded(item)
+        return {
+            "title": _trim(item.findtext("title")) or "",
+            "link": _trim(item.findtext("link")),
+            "description": description,
+            "content_encoded": encoded,
+            "guid": _trim(guid_node.text if guid_node is not None else None),
+            "guid_attributes": dict(guid_node.attrib) if guid_node is not None else {},
+            "pub_date": _trim(item.findtext("pubDate")),
             "categories": categories,
-            "revision": item.attrib.get("Revision"),
             "raw_xml": ET.tostring(item, encoding="unicode"),
         }
-        return serialized
 
     def normalize(self, item: dict) -> BulletinCreate:
         published_at = _parse_pub_date(item.get("pub_date"))
-        title = item.get("title") or ""
-        description = item.get("description")
         origin_url = item.get("link")
-        categories = item.get("categories") or []
-        revision = item.get("revision")
-        guid = item.get("guid")
+        description = item.get("description")
+        body_text = item.get("content_encoded") or description
 
-        external_id = guid or origin_url or None
-        if external_id and revision:
-            external_id = f"{external_id}#rev-{revision}"
-
+        external_id = item.get("guid") or origin_url
         source = SourceInfo(
-            source_slug="msrc_update_guide",
+            source_slug="the_hacker_news",
             external_id=external_id,
             origin_url=origin_url,
         )
         content = ContentInfo(
-            title=title,
+            title=item.get("title") or (origin_url or ""),
             summary=description,
-            body_text=description,
+            body_text=body_text,
             published_at=published_at,
             language="en",
         )
 
-        labels = [category for category in categories if category]
-        topics = ["official_bulletin"]
-        if any(category.upper() == "CVE" for category in categories if isinstance(category, str)):
-            topics.append("cve")
+        categories = item.get("categories") or []
+        labels = [f"category:{category.lower()}" for category in categories]
+        topics = ["security-news"]
 
         extra: dict[str, object] = {
-            "revision": revision,
             "categories": categories,
-            "guid": guid,
+            "guid": item.get("guid"),
             "guid_attributes": item.get("guid_attributes") or {},
         }
 
         raw_payload = {
             key: value
             for key, value in item.items()
-            if key not in {"raw_xml"}
+            if key != "raw_xml"
         }
         if item.get("raw_xml"):
             raw_payload["raw_xml"] = item["raw_xml"]
@@ -152,8 +144,8 @@ class MsrcCollector:
 
     def collect(self, params: FetchParams | None = None) -> List[BulletinCreate]:
         params = params or FetchParams()
-        items = self.fetch(params)
-        return [self.normalize(item) for item in items]
+        entries = self.fetch(params)
+        return [self.normalize(entry) for entry in entries]
 
 
 def run(
@@ -161,10 +153,10 @@ def run(
     token: str | None = None,
     params: FetchParams | None = None,
 ) -> tuple[list[BulletinCreate], dict | None]:
-    collector = MsrcCollector()
+    collector = HackerNewsCollector()
     bulletins = collector.collect(params=params)
     response_data = None
-    if ingest_url:
+    if ingest_url and bulletins:
         session = requests.Session()
         headers = {"Content-Type": "application/json"}
         if token:
@@ -177,4 +169,4 @@ def run(
     return bulletins, response_data
 
 
-__all__ = ["MsrcCollector", "FetchParams", "run"]
+__all__ = ["HackerNewsCollector", "FetchParams", "run"]

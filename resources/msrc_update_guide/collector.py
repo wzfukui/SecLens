@@ -1,4 +1,4 @@
-"""The Hacker News RSS collector."""
+"""Microsoft Security Response Center (MSRC) update guide collector."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -11,7 +11,7 @@ import requests
 
 from app.schemas import BulletinCreate, ContentInfo, SourceInfo
 
-DEFAULT_FEED_URL = "https://feeds.feedburner.com/TheHackersNews"
+FEED_URL = "https://api.msrc.microsoft.com/update-guide/rss"
 USER_AGENT = "SecLensCollector/0.1"
 REQUEST_HEADERS = {
     "Accept": "application/rss+xml, application/xml;q=0.9, */*;q=0.8",
@@ -21,7 +21,7 @@ REQUEST_HEADERS = {
 
 @dataclass
 class FetchParams:
-    feed_url: str = DEFAULT_FEED_URL
+    feed_url: str = FEED_URL
     limit: int | None = None
 
 
@@ -30,29 +30,27 @@ def _parse_pub_date(value: str | None) -> datetime | None:
         return None
     try:
         dt = parsedate_to_datetime(value)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
     except (TypeError, ValueError):
         return None
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
 
 
-def _trim(text: str | None) -> str | None:
-    if not text:
+def _get_text(element: ET.Element | None) -> str | None:
+    if element is None:
         return None
-    cleaned = text.strip()
-    return cleaned or None
+    text = (element.text or "").strip()
+    return text or None
 
 
-def _find_encoded(node: ET.Element) -> str | None:
-    for child in node:
-        if child.tag.lower().endswith("encoded"):
-            return _trim(child.text)
-    return None
+def _iter_items(channel: ET.Element) -> Iterable[ET.Element]:
+    for item in channel.findall("item"):
+        yield item
 
 
-class HackerNewsCollector:
-    """Collector that normalizes The Hacker News RSS feed."""
+class MsrcCollector:
+    """Collector that normalizes MSRC Security Update Guide RSS items."""
 
     def __init__(self, session: requests.Session | None = None) -> None:
         self.session = session or requests.Session()
@@ -63,63 +61,71 @@ class HackerNewsCollector:
         response.raise_for_status()
         root = ET.fromstring(response.content)
         channel = root.find("channel")
-        items = channel.findall("item") if channel is not None else root.findall(".//item")
+        if channel is None:
+            items = root.findall(".//item")
+            return [self._serialize_item(item) for item in items[: params.limit or None]]
 
         serialized: list[dict] = []
-        for item in items:
+        for item in _iter_items(channel):
             serialized.append(self._serialize_item(item))
             if params.limit and len(serialized) >= params.limit:
                 break
         return serialized
 
     def _serialize_item(self, item: ET.Element) -> dict:
-        guid_node = item.find("guid")
+        guid_element = item.find("guid")
         categories = [
-            _trim(cat.text)
-            for cat in item.findall("category")
-            if _trim(cat.text)
+            _get_text(category)
+            for category in item.findall("category")
+            if _get_text(category)
         ]
-        description = _trim(item.findtext("description"))
-        encoded = _find_encoded(item)
         return {
-            "title": _trim(item.findtext("title")) or "",
-            "link": _trim(item.findtext("link")),
-            "description": description,
-            "content_encoded": encoded,
-            "guid": _trim(guid_node.text if guid_node is not None else None),
-            "guid_attributes": dict(guid_node.attrib) if guid_node is not None else {},
-            "pub_date": _trim(item.findtext("pubDate")),
+            "title": _get_text(item.find("title")) or "",
+            "link": _get_text(item.find("link")),
+            "description": _get_text(item.find("description")),
+            "guid": _get_text(guid_element),
+            "guid_attributes": dict(guid_element.attrib) if guid_element is not None else {},
+            "pub_date": _get_text(item.find("pubDate")),
             "categories": categories,
+            "revision": item.attrib.get("Revision"),
             "raw_xml": ET.tostring(item, encoding="unicode"),
         }
 
     def normalize(self, item: dict) -> BulletinCreate:
         published_at = _parse_pub_date(item.get("pub_date"))
-        origin_url = item.get("link")
+        title = item.get("title") or ""
         description = item.get("description")
-        body_text = item.get("content_encoded") or description
+        origin_url = item.get("link")
+        categories = item.get("categories") or []
+        revision = item.get("revision")
+        guid = item.get("guid")
 
-        external_id = item.get("guid") or origin_url
+        external_id = guid or origin_url or None
+        if external_id and revision:
+            external_id = f"{external_id}#rev-{revision}"
+
         source = SourceInfo(
-            source_slug="the_hacker_news",
+            source_slug="msrc_update_guide",
             external_id=external_id,
             origin_url=origin_url,
         )
         content = ContentInfo(
-            title=item.get("title") or (origin_url or ""),
+            title=title,
             summary=description,
-            body_text=body_text,
+            body_text=description,
             published_at=published_at,
             language="en",
         )
 
-        categories = item.get("categories") or []
-        labels = [f"category:{category.lower()}" for category in categories]
-        topics = ["security-news"]
+        labels = [category for category in categories if category]
+        topics = ["official_bulletin"]
+        if any(isinstance(category, str) and category.upper() == "CVE" for category in categories):
+            topics.append("cve")
 
         extra: dict[str, object] = {
+            "revision": revision,
             "categories": categories,
-            "guid": item.get("guid"),
+            "guid": guid,
             "guid_attributes": item.get("guid_attributes") or {},
         }
 
@@ -144,8 +150,8 @@ class HackerNewsCollector:
 
     def collect(self, params: FetchParams | None = None) -> List[BulletinCreate]:
         params = params or FetchParams()
-        entries = self.fetch(params)
-        return [self.normalize(entry) for entry in entries]
+        items = self.fetch(params)
+        return [self.normalize(item) for item in items]
 
 
 def run(
@@ -153,10 +159,10 @@ def run(
     token: str | None = None,
     params: FetchParams | None = None,
 ) -> tuple[list[BulletinCreate], dict | None]:
-    collector = HackerNewsCollector()
+    collector = MsrcCollector()
     bulletins = collector.collect(params=params)
     response_data = None
-    if ingest_url and bulletins:
+    if ingest_url:
         session = requests.Session()
         headers = {"Content-Type": "application/json"}
         if token:
@@ -169,4 +175,4 @@ def run(
     return bulletins, response_data
 
 
-__all__ = ["HackerNewsCollector", "FetchParams", "run"]
+__all__ = ["MsrcCollector", "FetchParams", "run"]

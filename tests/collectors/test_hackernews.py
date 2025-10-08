@@ -1,4 +1,4 @@
-from collectors.hackernews import HackerNewsCollector
+from resources.the_hacker_news.collector import HackerNewsCollector
 
 
 def test_normalize_hackernews_item():

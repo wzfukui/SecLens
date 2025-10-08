@@ -1,4 +1,4 @@
-from collectors.linuxsecurity import LinuxSecurityCollector
+from resources.linuxsecurity_hybrid.collector import LinuxSecurityCollector
 
 
 def test_normalize_linuxsecurity_hybrid_item():

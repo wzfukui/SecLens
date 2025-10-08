@@ -1,0 +1,22 @@
+{
+  "slug": "doonsec_wechat",
+  "name": "洞见网安（Doonsec）公众号聚合",
+  "version": "1.0.0",
+  "entrypoint": "collector:run",
+  "description": "聚合洞见网安微信公众号的安全文章 RSS。",
+  "schedule": "3600",
+  "source": {
+    "publisher": "洞见网安 Doonsec",
+    "homepage": "https://wechat.doonsec.com/",
+    "feed_url": "https://wechat.doonsec.com/rss.xml"
+  },
+  "runtime": {},
+  "ui": {
+    "group_slug": "security_news",
+    "group_title": "安全新闻",
+    "group_description": "媒体与安全团队对热点事件的报道。",
+    "group_order": 40,
+    "source_title": "洞见网安",
+    "source_order": 40
+  }
+}

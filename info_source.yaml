@@ -28,6 +28,14 @@
     Description: Combined feed of Linux security advisories, news, and features
     Home: https://linuxsecurity.com/
     Rss: https://linuxsecurity.com/linuxsecurity_hybrid.xml
+  - 嘶吼安全
+    Description: 嘶吼 RoarTalk 网络安全综合平台资讯
+    Home: https://www.4hou.com/
+    Rss: https://www.4hou.com/feed
+  - 洞见网安
+    Description: 洞见网安微信公众号文章聚合
+    Home: https://wechat.doonsec.com/
+    Rss: https://wechat.doonsec.com/rss.xml
 
 
 # 黑客利用工具

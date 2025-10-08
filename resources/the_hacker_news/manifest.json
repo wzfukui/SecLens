@@ -1,0 +1,22 @@
+{
+  "slug": "the_hacker_news",
+  "name": "The Hacker News Collector",
+  "version": "1.0.0",
+  "entrypoint": "collector:run",
+  "description": "Collects cybersecurity headlines from The Hacker News RSS feed.",
+  "schedule": "3600",
+  "source": {
+    "publisher": "The Hacker News",
+    "homepage": "https://thehackernews.com/",
+    "feed_url": "https://feeds.feedburner.com/TheHackersNews"
+  },
+  "runtime": {},
+  "ui": {
+    "group_slug": "security_news",
+    "group_title": "安全新闻",
+    "group_description": "媒体与安全团队对热点事件的报道。",
+    "group_order": 40,
+    "source_title": "The Hacker News",
+    "source_order": 10
+  }
+}

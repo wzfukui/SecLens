@@ -1,4 +1,4 @@
-from collectors.msrc import MsrcCollector
+from resources.msrc_update_guide.collector import MsrcCollector
 
 
 def test_normalize_msrc_item_with_revision():

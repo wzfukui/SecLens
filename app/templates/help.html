@@ -3,7 +3,7 @@
 <section class="static-page">
     <h2>平台工作流程</h2>
     <ol>
-        <li><strong>开发插件</strong>：在本地实现采集逻辑（示例参考仓库中的 <code>collectors.aliyun</code> 模块）。</li>
+        <li><strong>开发插件</strong>：在本地实现采集逻辑（示例参考仓库中的 <code>resources.aliyun_security.collector</code> 模块）。</li>
         <li><strong>打包注册</strong>：将代码和 manifest 压缩成 ZIP，并通过 <code>POST /v1/plugins/upload</code> 提交。</li>
         <li><strong>审核激活</strong>：调用 <code>POST /v1/plugins/{id}/activate</code>，确认 schedule、运行状态。</li>
         <li><strong>自动调度</strong>：运行 <code>python scripts/run_scheduler.py</code> 周期执行激活的插件。</li>
@@ -15,16 +15,14 @@
     <p>目录结构：</p>
     <pre><code>aliyun.zip
 ├── manifest.json
-└── collectors
-    ├── __init__.py
-    └── aliyun.py</code></pre>
+└── collector.py</code></pre>
 
     <p><code>manifest.json</code></p>
     <pre><code>{
   "slug": "aliyun_security",
   "name": "Aliyun Bulletin Collector",
   "version": "1.0.0",
-  "entrypoint": "collectors.aliyun:run",
+  "entrypoint": "collector:run",
   "description": "采集阿里云安全公告",
   "schedule": "3600",                         // 每 3600 秒运行一次
   "source": {
@@ -38,7 +36,7 @@
   }
 }</code></pre>
 
-    <p><code>collectors/aliyun.py</code>（核心片段）</p>
+    <p><code>collector.py</code>（核心片段）</p>
     <pre><code>API_URL = "https://t.aliyun.com/abs/bulletin/bulletinQuery"
 
 @dataclass(slots=True)
@@ -101,7 +99,7 @@ def run(ingest_url: str | None = None, token: str | None = None, **runtime):
 
     <h3>上传步骤</h3>
     <ol>
-        <li>压缩：<code>zip -r aliyun.zip manifest.json collectors/</code></li>
+        <li>压缩：<code>zip -r aliyun.zip manifest.json collector.py</code></li>
         <li>Base64 编码：<code>base64 aliyun.zip &gt; payload.b64</code></li>
         <li>调用接口：</li>
     </ol>

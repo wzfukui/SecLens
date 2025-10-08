@@ -1,0 +1,22 @@
+{
+  "slug": "sihou_news",
+  "name": "嘶吼安全新闻采集器",
+  "version": "1.0.0",
+  "entrypoint": "collector:run",
+  "description": "采集嘶吼（4hou.com）安全新闻 RSS 内容。",
+  "schedule": "3600",
+  "source": {
+    "publisher": "嘶吼 RoarTalk",
+    "homepage": "https://www.4hou.com/",
+    "feed_url": "https://www.4hou.com/feed"
+  },
+  "runtime": {},
+  "ui": {
+    "group_slug": "security_news",
+    "group_title": "安全新闻",
+    "group_description": "媒体与安全团队对热点事件的报道。",
+    "group_order": 40,
+    "source_title": "嘶吼安全",
+    "source_order": 30
+  }
+}

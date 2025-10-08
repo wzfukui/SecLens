@@ -3,53 +3,55 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.schemas import BulletinCreate
-from collectors.aliyun import FetchParams as AliyunFetchParams, run as run_aliyun
-from collectors.hackernews import FetchParams as HackerNewsFetchParams, run as run_hackernews
-from collectors.huawei import FetchParams as HuaweiFetchParams, run as run_huawei
-from collectors.linuxsecurity import FetchParams as LinuxSecurityFetchParams, run as run_linuxsecurity
-from collectors.msrc import FetchParams as MsrcFetchParams, run as run_msrc
-from resources.aliyun_security.collector import (
-    FetchParams as AliyunSecurityFetchParams,
-    run as run_aliyun_security,
-)
+from resources.aliyun_security.collector import FetchParams as AliyunFetchParams, run as run_aliyun
 from resources.exploit_db.collector import run as run_exploit_db
 from resources.freebuf_community.collector import run as run_freebuf
+from resources.huawei_security.collector import FetchParams as HuaweiFetchParams, run as run_huawei
+from resources.linuxsecurity_hybrid.collector import (
+    FetchParams as LinuxSecurityFetchParams,
+    run as run_linuxsecurity,
+)
+from resources.doonsec_wechat.collector import (
+    FetchParams as DoonsecFetchParams,
+    run as run_doonsec,
+)
+from resources.msrc_update_guide.collector import FetchParams as MsrcFetchParams, run as run_msrc
 from resources.oracle_security_alert.collector import run as run_oracle
-from resources.huawei_security.collector import (
-    FetchParams as HuaweiSecurityFetchParams,
-    run as run_huawei_security,
+from resources.sihou_news.collector import FetchParams as SihouFetchParams, run as run_sihou
+from resources.the_hacker_news.collector import (
+    FetchParams as HackerNewsFetchParams,
+    run as run_hackernews,
 )
 from resources.tencent_cloud_security.collector import run as run_tencent_cloud
 from resources.ubuntu_security_notice.collector import run as run_ubuntu_security
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run a SecLens collector")
+    parser = argparse.ArgumentParser(description="Run a SecLens plugin locally")
     parser.add_argument(
         "--source",
         choices=[
-            "aliyun",
-            "huawei",
-            "msrc",
-            "linuxsecurity",
-            "hackernews",
             "aliyun_security",
             "huawei_security",
-            "freebuf",
-            "tencent_cloud",
+            "msrc_update_guide",
+            "linuxsecurity_hybrid",
+            "the_hacker_news",
+            "sihou_news",
+            "doonsec_wechat",
+            "freebuf_community",
+            "tencent_cloud_security",
             "exploit_db",
-            "ubuntu_security",
+            "ubuntu_security_notice",
             "oracle_security_alert",
         ],
         required=True,
-        help="Collector source slug",
+        help="Plugin source slug",
     )
     parser.add_argument("--ingest-url", dest="ingest_url", help="Optional ingest API endpoint")
     parser.add_argument("--token", help="Bearer token for the ingest API")
@@ -70,56 +72,18 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def run_collector(args: argparse.Namespace) -> tuple[list[BulletinCreate], dict | None]:
-    if args.source == "aliyun":
+def run_plugin(args: argparse.Namespace) -> tuple[list[BulletinCreate], dict | None]:
+    if args.source == "aliyun_security":
         defaults = AliyunFetchParams()
         params = AliyunFetchParams(
             page_no=args.page_no or defaults.page_no,
             page_size=args.page_size or defaults.page_size,
-        )
-        return run_aliyun(args.ingest_url, args.token, params=params)
-    if args.source == "huawei":
-        defaults = HuaweiFetchParams()
-        params = HuaweiFetchParams(
-            page_index=args.page_index or defaults.page_index,
-            page_size=args.page_size or defaults.page_size,
-            sort=args.sort or defaults.sort,
-            sort_field=args.sort_field or defaults.sort_field,
-            keyword=args.keyword if args.keyword is not None else defaults.keyword,
-        )
-        return run_huawei(args.ingest_url, args.token, params=params)
-    if args.source == "msrc":
-        defaults = MsrcFetchParams()
-        params = MsrcFetchParams(
-            feed_url=args.feed_url or defaults.feed_url,
-            limit=args.limit or defaults.limit,
-        )
-        return run_msrc(args.ingest_url, args.token, params=params)
-    if args.source == "linuxsecurity":
-        defaults = LinuxSecurityFetchParams()
-        params = LinuxSecurityFetchParams(
-            feed_url=args.feed_url or defaults.feed_url,
-            limit=args.limit or defaults.limit,
-        )
-        return run_linuxsecurity(args.ingest_url, args.token, params=params)
-    if args.source == "hackernews":
-        defaults = HackerNewsFetchParams()
-        params = HackerNewsFetchParams(
-            feed_url=args.feed_url or defaults.feed_url,
-            limit=args.limit or defaults.limit,
-        )
-        return run_hackernews(args.ingest_url, args.token, params=params)
-    if args.source == "aliyun_security":
-        defaults = AliyunSecurityFetchParams()
-        params = AliyunSecurityFetchParams(
-            page_no=args.page_no or defaults.page_no,
-            page_size=args.page_size or defaults.page_size,
             bulletin_type=args.bulletin_type or defaults.bulletin_type,
         )
-        return run_aliyun_security(args.ingest_url, args.token, params=params)
+        return run_aliyun(args.ingest_url, args.token, params=params)
     if args.source == "huawei_security":
-        defaults = HuaweiSecurityFetchParams()
-        params = HuaweiSecurityFetchParams(
+        defaults = HuaweiFetchParams()
+        params = HuaweiFetchParams(
             page_index=args.page_index or defaults.page_index,
             page_size=args.page_size or defaults.page_size,
             sort=args.sort or defaults.sort,
@@ -130,15 +94,50 @@ def run_collector(args: argparse.Namespace) -> tuple[list[BulletinCreate], dict 
             product_line=args.product_line or defaults.product_line,
             range=args.range_value or defaults.range,
         )
-        return run_huawei_security(args.ingest_url, args.token, params=params)
-    if args.source == "freebuf":
+        return run_huawei(args.ingest_url, args.token, params=params)
+    if args.source == "msrc_update_guide":
+        defaults = MsrcFetchParams()
+        params = MsrcFetchParams(
+            feed_url=args.feed_url or defaults.feed_url,
+            limit=args.limit or defaults.limit,
+        )
+        return run_msrc(args.ingest_url, args.token, params=params)
+    if args.source == "linuxsecurity_hybrid":
+        defaults = LinuxSecurityFetchParams()
+        params = LinuxSecurityFetchParams(
+            feed_url=args.feed_url or defaults.feed_url,
+            limit=args.limit or defaults.limit,
+        )
+        return run_linuxsecurity(args.ingest_url, args.token, params=params)
+    if args.source == "the_hacker_news":
+        defaults = HackerNewsFetchParams()
+        params = HackerNewsFetchParams(
+            feed_url=args.feed_url or defaults.feed_url,
+            limit=args.limit or defaults.limit,
+        )
+        return run_hackernews(args.ingest_url, args.token, params=params)
+    if args.source == "sihou_news":
+        defaults = SihouFetchParams()
+        params = SihouFetchParams(
+            feed_url=args.feed_url or defaults.feed_url,
+            limit=args.limit or defaults.limit,
+        )
+        return run_sihou(args.ingest_url, args.token, params=params)
+    if args.source == "doonsec_wechat":
+        defaults = DoonsecFetchParams()
+        params = DoonsecFetchParams(
+            feed_url=args.feed_url or defaults.feed_url,
+            limit=args.limit or defaults.limit,
+        )
+        return run_doonsec(args.ingest_url, args.token, params=params)
+    if args.source == "freebuf_community":
         bulletins, response = run_freebuf(args.ingest_url, args.token, force=args.force)
         return bulletins, response
-    if args.source == "tencent_cloud":
+    if args.source == "tencent_cloud_security":
         return run_tencent_cloud(args.ingest_url, args.token, limit=args.limit, force=args.force)
     if args.source == "exploit_db":
         return run_exploit_db(args.ingest_url, args.token, limit=args.limit, force=args.force)
-    if args.source == "ubuntu_security":
+    if args.source == "ubuntu_security_notice":
         return run_ubuntu_security(args.ingest_url, args.token, limit=args.limit, force=args.force)
     if args.source == "oracle_security_alert":
         return run_oracle(args.ingest_url, args.token, limit=args.limit, force=args.force)
@@ -147,7 +146,7 @@ def run_collector(args: argparse.Namespace) -> tuple[list[BulletinCreate], dict 
 
 def main() -> None:
     args = parse_args()
-    bulletins, ingest_result = run_collector(args)
+    bulletins, ingest_result = run_plugin(args)
     if args.ingest_url:
         summary = f"[{args.source}] dispatched {len(bulletins)} bulletins"
         if isinstance(ingest_result, dict):

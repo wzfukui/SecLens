@@ -12,11 +12,11 @@
   },
   "runtime": {},
   "ui": {
-    "group_slug": "security_news",
-    "group_title": "安全新闻",
-    "group_description": "媒体与安全团队对热点事件的报道。",
-    "group_order": 40,
+    "group_slug": "wechat_feeds",
+    "group_title": "微信公众号",
+    "group_description": "安全类公众号的精选文章汇总。",
+    "group_order": 60,
     "source_title": "洞见网安",
-    "source_order": 40
+    "source_order": 10
   }
 }

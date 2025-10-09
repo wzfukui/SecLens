@@ -34,6 +34,11 @@
     <pre class="code-block">{{ manifest | tojson(indent=2) }}</pre>
     {% endif %}
 
+    <h3>采集趋势（近 {{ trend_window_days }} 天）</h3>
+    <div class="chart-wrapper">
+        <canvas id="plugin-trend-chart" aria-label="近{{ trend_window_days }}天采集趋势" role="img"></canvas>
+    </div>
+
     <h3>版本历史</h3>
     <div class="table-wrapper">
         <table class="plugins-table">
@@ -125,4 +130,66 @@
         </table>
     </div>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js" integrity="sha384-2xa3JrreMxU4u0cCqVyJlPR1H3nVmUSbl6gXw45zoScZ+SipJYdA10iHI6IU6D9U" crossorigin="anonymous"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const canvas = document.getElementById('plugin-trend-chart');
+    const series = {{ trend_series | tojson }};
+    if (!canvas || !Array.isArray(series) || series.length === 0 || !window.Chart) {
+        return;
+    }
+
+    const labels = series.map(point => point.date.slice(5));
+    const dataPoints = series.map(point => point.count);
+    new window.Chart(canvas, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: '每日采集条数',
+                data: dataPoints,
+                tension: 0.2,
+                fill: true,
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37, 99, 235, 0.15)',
+                pointRadius: 3,
+                pointBackgroundColor: '#1d4ed8',
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0,
+                    },
+                },
+            },
+            plugins: {
+                legend: {
+                    display: false,
+                },
+                tooltip: {
+                    callbacks: {
+                        title(items) {
+                            const item = items[0];
+                            if (!item) return '';
+                            return series[item.dataIndex]?.date ?? '';
+                        },
+                        label(item) {
+                            return `采集 ${item.formattedValue} 条`;
+                        },
+                    },
+                },
+            },
+        },
+    });
+});
+</script>
 {% endblock %}

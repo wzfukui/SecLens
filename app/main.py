@@ -1,5 +1,6 @@
 """FastAPI application entrypoint."""
-from datetime import datetime
+from collections import OrderedDict
+from datetime import datetime, timedelta, timezone
 import json
 from functools import lru_cache
 from pathlib import Path
@@ -20,7 +21,7 @@ from scripts.scheduler_service import start_scheduler
 from app.database import Base, get_db_session, get_engine
 from app.schemas import BulletinOut
 from app.logging_utils import setup_logging
-from app.utils.datetime import format_display
+from app.utils.datetime import format_display, get_display_timezone, to_display_tz
 
 from app.routers import bulletins, ingest, plugins
 from app.models import Plugin, Bulletin
@@ -312,6 +313,33 @@ def create_app() -> FastAPI:
             .scalar()
         ) or 0
 
+        trend_days = 30
+        display_tz = get_display_timezone()
+        now_local = datetime.now(display_tz)
+        start_local = (now_local - timedelta(days=trend_days - 1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        start_utc = start_local.astimezone(timezone.utc)
+
+        raw_fetched = (
+            db.query(Bulletin.fetched_at)
+            .filter(Bulletin.source_slug == plugin.slug)
+            .filter(Bulletin.fetched_at.isnot(None))
+            .filter(Bulletin.fetched_at >= start_utc)
+            .all()
+        )
+        fetched_datetimes = [value[0] for value in raw_fetched if value and value[0]]
+
+        trend_counts: OrderedDict[str, int] = OrderedDict()
+        for offset in range(trend_days):
+            day = (start_local + timedelta(days=offset)).date()
+            trend_counts[day.isoformat()] = 0
+
+        for fetched_at in fetched_datetimes:
+            local_dt = to_display_tz(fetched_at)
+            day_key = local_dt.date().isoformat()
+            trend_counts[day_key] = trend_counts.get(day_key, 0) + 1
+
+        trend_series = [{"date": date, "count": count} for date, count in trend_counts.items()]
+
         recent_bulletins = (
             db.query(Bulletin)
             .filter(Bulletin.source_slug == plugin.slug)
@@ -332,6 +360,8 @@ def create_app() -> FastAPI:
                 "versions": versions_payload,
                 "runs": runs_payload,
                 "total_items": total_items,
+                "trend_series": trend_series,
+                "trend_window_days": trend_days,
                 "recent_bulletins": recent_bulletins,
                 "page_id": "plugin-detail",
             },

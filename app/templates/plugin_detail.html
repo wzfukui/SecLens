@@ -134,7 +134,7 @@
 
 {% block extra_js %}
 {{ super() }}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js" integrity="sha384-2xa3JrreMxU4u0cCqVyJlPR1H3nVmUSbl6gXw45zoScZ+SipJYdA10iHI6IU6D9U" crossorigin="anonymous"></script>
+<script src="/static/vendor/chart.umd.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('plugin-trend-chart');

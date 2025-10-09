@@ -10,33 +10,59 @@
     <style>
         header .hero {
             display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.75rem;
+            align-items: center;
+            gap: 1.5rem;
         }
 
         header .hero .hero-logo-link {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            border-radius: 20px;
-            background: rgba(255, 255, 255, 0.12);
-            padding: 0.4rem;
-            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.2);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        header .hero .hero-logo-link:hover,
-        header .hero .hero-logo-link:focus-visible {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.25);
-            outline: none;
         }
 
         header .hero .hero-logo {
             display: block;
-            width: 64px;
+            width: 72px;
             height: auto;
+        }
+
+        header .hero .hero-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        header .hero .hero-content h1 {
+            margin: 0;
+        }
+
+        header .hero .hero-content p {
+            margin: 0;
+            color: rgba(255, 255, 255, 0.72);
+        }
+
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 1.25rem;
+            }
+
+            header .hero {
+                width: 100%;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+
+            header .hero .hero-logo {
+                width: 60px;
+            }
+
+            header .hero .hero-content h1,
+            header .hero .hero-content p {
+                text-align: left;
+            }
         }
     </style>
     {% block extra_css %}{% endblock %}
@@ -54,10 +80,10 @@
                 decoding="async"
             >
         </a>
-        <h1><a href="/">{{ header or 'SecLens 情报雷达' }}</a></h1>
-        <p>
-            聚合官方安全公告、厂商发布与热点资讯，支持分组浏览、过滤和 RSS 订阅，让你的安全情报体系更加高效。
-        </p>
+        <div class="hero-content">
+            <h1><a href="/">{{ header or 'SecLens 情报雷达' }}</a></h1>
+            <p>聚合官方安全公告、厂商发布与热点资讯，支持分组浏览、过滤和 RSS 订阅，让你的安全情报体系更加高效。</p>
+        </div>
     </div>
     <div class="global-menu">
         <button class="menu-toggle" type="button" aria-label="更多菜单" aria-expanded="false" aria-controls="global-menu-list">&hellip;</button>

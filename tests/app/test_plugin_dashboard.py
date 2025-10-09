@@ -115,6 +115,7 @@ def test_plugin_detail_page_shows_versions_and_runs():
     assert "版本历史" in body
     assert "采集趋势" in body
     assert "plugin-trend-chart" in body
+    assert "<title" in body and "SecLens</title>" in body
     assert "/bulletins/" in body
 
     detail_response = client.get(f"/bulletins/{bulletin_id}")

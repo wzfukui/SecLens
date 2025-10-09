@@ -348,12 +348,15 @@ def create_app() -> FastAPI:
             .all()
         )
 
+        display_title = plugin.display_name or plugin.name
+        page_title = f"{display_title} · SecLens"
+
         return templates.TemplateResponse(
             request=request,
             name="plugin_detail.html",
             context={
-                "title": plugin.display_name or plugin.name,
-                "header": plugin.display_name or plugin.name,
+                "title": page_title,
+                "header": display_title,
                 "plugin": plugin,
                 "current_version": current_version,
                 "manifest": manifest,

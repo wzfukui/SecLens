@@ -11,30 +11,13 @@
     <p>{{ plugin.description }}</p>
     {% endif %}
 
-    <h3>当前版本</h3>
-    {% if current_version %}
-    <dl>
-        <dt>版本号</dt>
-        <dd>{{ current_version.version }}</dd>
-        <dt>状态</dt>
-        <dd>{{ current_version.status }}</dd>
-        <dt>调度</dt>
-        <dd>{{ current_version.schedule or '未配置' }}</dd>
-        <dt>上次运行</dt>
-        <dd>{{ current_version.last_run_at|display_time or '—' }}</dd>
-        <dt>下一次运行</dt>
-        <dd>{{ current_version.next_run_at|display_time or '—' }}</dd>
-    </dl>
-    {% else %}
-    <p>暂无版本信息。</p>
-    {% endif %}
-
     {% if manifest %}
     <h3>Manifest</h3>
     <pre class="code-block">{{ manifest | tojson(indent=2) }}</pre>
     {% endif %}
 
-    <h3>采集趋势（近 {{ trend_window_days }} 天）</h3>
+    <h3>采集趋势</h3>
+    <p class="section-note">近 {{ trend_window_days }} 天采集条数</p>
     <div class="chart-wrapper">
         <canvas id="plugin-trend-chart" aria-label="近{{ trend_window_days }}天采集趋势" role="img"></canvas>
     </div>
@@ -72,6 +55,31 @@
         </table>
     </div>
 
+    <h3>最新采集</h3>
+    <div class="table-wrapper">
+        <table class="plugins-table">
+            <thead>
+                <tr>
+                    <th>标题</th>
+                    <th>发布时间</th>
+                    <th>抓取时间</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bulletin in recent_bulletins %}
+                <tr>
+                    <td><a href="/bulletins/{{ bulletin.id }}">{{ bulletin.title }}</a></td>
+                    <td>{{ bulletin.published_at|display_time or '—' }}</td>
+                    <td>{{ bulletin.fetched_at|display_time or '—' }}</td>
+                </tr>
+                {% endfor %}
+                {% if not recent_bulletins %}
+                <tr><td colspan="3" class="empty">暂无采集记录</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
     <h3>最近运行记录</h3>
     <div class="table-wrapper">
         <table class="plugins-table">
@@ -100,31 +108,6 @@
                 {% endfor %}
                 {% if not runs %}
                 <tr><td colspan="7" class="empty">暂无运行记录</td></tr>
-                {% endif %}
-            </tbody>
-        </table>
-    </div>
-
-    <h3>最新采集</h3>
-    <div class="table-wrapper">
-        <table class="plugins-table">
-            <thead>
-                <tr>
-                    <th>标题</th>
-                    <th>发布时间</th>
-                    <th>抓取时间</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for bulletin in recent_bulletins %}
-                <tr>
-                    <td><a href="/bulletins/{{ bulletin.id }}">{{ bulletin.title }}</a></td>
-                    <td>{{ bulletin.published_at|display_time or '—' }}</td>
-                    <td>{{ bulletin.fetched_at|display_time or '—' }}</td>
-                </tr>
-                {% endfor %}
-                {% if not recent_bulletins %}
-                <tr><td colspan="3" class="empty">暂无采集记录</td></tr>
                 {% endif %}
             </tbody>
         </table>

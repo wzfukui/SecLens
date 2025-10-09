@@ -9,8 +9,8 @@
         {% else %}
             {{ bulletin.source_slug }}
         {% endif %}
-        {% if bulletin.published_at %} · 发布时间 {{ bulletin.published_at.strftime('%Y-%m-%d %H:%M UTC') }}{% endif %}
-        {% if bulletin.fetched_at %} · 抓取时间 {{ bulletin.fetched_at.strftime('%Y-%m-%d %H:%M UTC') }}{% endif %}
+        {% if bulletin.published_at %} · 发布时间 {{ bulletin.published_at|display_time or '—' }}{% endif %}
+        {% if bulletin.fetched_at %} · 抓取时间 {{ bulletin.fetched_at|display_time or '—' }}{% endif %}
     </p>
     {% if bulletin.origin_url %}
         <p><a href="{{ bulletin.origin_url }}" target="_blank" rel="noopener noreferrer">原文链接</a></p>

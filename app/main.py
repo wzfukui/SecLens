@@ -1,5 +1,5 @@
 """FastAPI application entrypoint."""
-from datetime import datetime, timezone
+from datetime import datetime
 import json
 from functools import lru_cache
 from pathlib import Path
@@ -20,6 +20,7 @@ from scripts.scheduler_service import start_scheduler
 from app.database import Base, get_db_session, get_engine
 from app.schemas import BulletinOut
 from app.logging_utils import setup_logging
+from app.utils.datetime import format_display
 
 from app.routers import bulletins, ingest, plugins
 from app.models import Plugin, Bulletin
@@ -54,6 +55,13 @@ def create_app() -> FastAPI:
     app = FastAPI(title="SecLens Ingest API", version="0.1.0")
     templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
     templates.env.globals["static_asset_url"] = static_asset_url
+
+    def display_time_filter(value: Optional[datetime], pattern: Optional[str] = None) -> str:
+        formatted = format_display(value, pattern=pattern)
+        return formatted or ""
+
+    templates.env.filters["display_time"] = display_time_filter
+
     start_scheduler(app)
     if STATIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -172,9 +180,7 @@ def create_app() -> FastAPI:
         )
 
         def fmt(dt: Optional[datetime]) -> Optional[str]:
-            if not dt:
-                return None
-            return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+            return format_display(dt)
 
         plugins_payload: list[dict[str, object]] = []
         active = 0
@@ -219,7 +225,7 @@ def create_app() -> FastAPI:
                     "total_items": collected,
                     "group_title": plugin.group_title,
                 }
-        )
+            )
 
         summary = [
             {"label": "总插件数", "value": len(plugin_rows)},
@@ -260,9 +266,7 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=404, detail="Plugin not found")
 
         def fmt(dt: Optional[datetime]) -> Optional[str]:
-            if not dt:
-                return None
-            return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+            return format_display(dt)
 
         current_version = plugin.current_version or (plugin.versions[0] if plugin.versions else None)
         manifest = current_version.manifest if current_version and current_version.manifest else None

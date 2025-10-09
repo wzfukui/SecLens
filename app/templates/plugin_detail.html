@@ -21,9 +21,9 @@
         <dt>调度</dt>
         <dd>{{ current_version.schedule or '未配置' }}</dd>
         <dt>上次运行</dt>
-        <dd>{{ current_version.last_run_at.astimezone().strftime('%Y-%m-%d %H:%M UTC') if current_version.last_run_at else '—' }}</dd>
+        <dd>{{ current_version.last_run_at|display_time or '—' }}</dd>
         <dt>下一次运行</dt>
-        <dd>{{ current_version.next_run_at.astimezone().strftime('%Y-%m-%d %H:%M UTC') if current_version.next_run_at else '—' }}</dd>
+        <dd>{{ current_version.next_run_at|display_time or '—' }}</dd>
     </dl>
     {% else %}
     <p>暂无版本信息。</p>
@@ -114,8 +114,8 @@
                 {% for bulletin in recent_bulletins %}
                 <tr>
                     <td><a href="/bulletins/{{ bulletin.id }}">{{ bulletin.title }}</a></td>
-                    <td>{{ bulletin.published_at.strftime('%Y-%m-%d %H:%M UTC') if bulletin.published_at else '—' }}</td>
-                    <td>{{ bulletin.fetched_at.strftime('%Y-%m-%d %H:%M UTC') if bulletin.fetched_at else '—' }}</td>
+                    <td>{{ bulletin.published_at|display_time or '—' }}</td>
+                    <td>{{ bulletin.fetched_at|display_time or '—' }}</td>
                 </tr>
                 {% endfor %}
                 {% if not recent_bulletins %}

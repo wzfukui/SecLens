@@ -19,6 +19,7 @@ from app.schemas import (
     SourceSectionOut,
 )
 from app.services import build_home_sections
+from app.utils.datetime import to_display_tz
 
 router = APIRouter(prefix="/v1/bulletins", tags=["bulletins"])
 
@@ -112,7 +113,7 @@ def bulletins_rss(
         if description:
             ET.SubElement(item, "description").text = description
         if bulletin.published_at:
-            ET.SubElement(item, "pubDate").text = format_datetime(bulletin.published_at)
+            ET.SubElement(item, "pubDate").text = format_datetime(to_display_tz(bulletin.published_at))
         guid = ET.SubElement(item, "guid")
         guid.text = f"seclens:{bulletin.id}"
         guid.set("isPermaLink", "false")

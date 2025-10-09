@@ -8,6 +8,7 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://seclens:seclens@localhost:5432/seclens_dev"
     app_env: str = "development"
+    display_timezone: str = "Asia/Shanghai"
     ingest_base_url: str = "http://localhost:8000"
     log_level: str = "INFO"
     log_dir: str = "logs"

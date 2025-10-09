@@ -53,10 +53,10 @@
                         <h2><a href="/bulletins/{{ bulletin.id }}">{{ bulletin.title }}</a></h2>
                         <div class="meta">
                             {% if bulletin.published_at %}
-                                发布时间 {{ bulletin.published_at.strftime('%Y-%m-%d %H:%M UTC') }}
+                                发布时间 {{ bulletin.published_at|display_time or '—' }}
                             {% endif %}
                             {% if bulletin.fetched_at %}
-                                抓取时间 {{ bulletin.fetched_at.strftime('%Y-%m-%d %H:%M UTC') }}
+                                抓取时间 {{ bulletin.fetched_at|display_time or '—' }}
                             {% endif %}
                         </div>
                         {% set display_text = bulletin.summary or bulletin.body_text %}

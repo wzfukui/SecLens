@@ -19,6 +19,7 @@ from app.services import build_home_sections, HomeSection, SourceSection
 from scripts.scheduler_service import start_scheduler
 from app.database import Base, get_db_session, get_engine
 from app.schemas import BulletinOut
+from app.logging_utils import setup_logging
 
 from app.routers import bulletins, ingest, plugins
 from app.models import Plugin, Bulletin
@@ -44,6 +45,9 @@ def static_asset_url(filename: str) -> str:
     manifest = _load_asset_manifest()
     target = manifest.get(filename, filename)
     return f"/static/dist/{target}"
+
+
+setup_logging()
 
 
 def create_app() -> FastAPI:
@@ -280,12 +284,21 @@ def create_app() -> FastAPI:
 
         runs_payload: list[dict[str, object]] = []
         for run in sorted(plugin.runs, key=lambda r: r.started_at, reverse=True)[:10]:
+            summary: dict[str, object] = {}
+            if run.output:
+                try:
+                    summary = json.loads(run.output)
+                except (TypeError, json.JSONDecodeError):
+                    summary = {}
             runs_payload.append(
                 {
                     "status": run.status,
                     "started_at": fmt(run.started_at) or "—",
                     "finished_at": fmt(run.finished_at) or "—",
                     "message": run.message,
+                    "collected": summary.get("collected"),
+                    "accepted": summary.get("accepted"),
+                    "duplicates": summary.get("duplicates"),
                 }
             )
 

@@ -7,7 +7,7 @@ import sys
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from importlib import import_module
+import importlib.util
 from pathlib import Path
 from typing import Any, Callable
 from zipfile import ZipFile
@@ -120,10 +120,46 @@ def load_callable(version: PluginVersion) -> Callable[..., Any]:
         raise ValueError("Entrypoint must be in the form 'module:callable'")
 
     plugin_dir = Path(version.upload_path)
-    if plugin_dir.exists() and str(plugin_dir) not in sys.path:
+    if not plugin_dir.exists():
+        raise FileNotFoundError(f"Plugin files for {version.plugin.slug} not found at {plugin_dir}")
+    if str(plugin_dir) not in sys.path:
         sys.path.insert(0, str(plugin_dir))
 
-    module = import_module(module_path)
+    # Build a unique module name per plugin version to avoid collisions between
+    # different plugins all exposing `collector.py`.
+    unique_module_name = f"_seclens.plugins.{version.plugin.slug}.{version.version.replace('.', '_')}.{module_path}"
+    module_rel_path = Path(*module_path.split("."))
+
+    def _load_from_file(file_path: Path, *, is_package: bool = False):
+        spec = importlib.util.spec_from_file_location(
+            unique_module_name,
+            file_path,
+            submodule_search_locations=[str(file_path.parent)] if is_package else None,
+        )
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Unable to load module '{module_path}' from '{file_path}'")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[unique_module_name] = module
+        # Ensure we don't accidentally reuse a stale bare module name if another plugin registered it.
+        sys.modules.pop(module_path, None)
+        spec.loader.exec_module(module)
+        # Expose the bare module name for runtime code that might import it directly,
+        # while keeping a unique canonical name to avoid cross-plugin collisions.
+        sys.modules[module_path] = module
+        return module
+
+    if module_rel_path.suffix:
+        # Prevent inputs like "collector.py"
+        raise ValueError("Entrypoint module should be a dotted path without file suffix")
+
+    candidate = plugin_dir / module_rel_path
+    if candidate.with_suffix(".py").is_file():
+        module = _load_from_file(candidate.with_suffix(".py"))
+    elif candidate.is_dir() and (candidate / "__init__.py").is_file():
+        module = _load_from_file(candidate / "__init__.py", is_package=True)
+    else:
+        raise FileNotFoundError(f"Module '{module_path}' not found for plugin {version.plugin.slug}")
+
     func = getattr(module, attr)
     if not callable(func):
         raise TypeError("Entrypoint is not callable")

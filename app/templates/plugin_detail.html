@@ -75,6 +75,9 @@
                     <th>状态</th>
                     <th>开始时间</th>
                     <th>结束时间</th>
+                    <th>采集条目</th>
+                    <th>新增条目</th>
+                    <th>重复条目</th>
                     <th>信息</th>
                 </tr>
             </thead>
@@ -84,11 +87,14 @@
                     <td>{{ run.status }}</td>
                     <td>{{ run.started_at }}</td>
                     <td>{{ run.finished_at }}</td>
+                    <td>{{ run.collected if run.collected is not none else '—' }}</td>
+                    <td>{{ run.accepted if run.accepted is not none else '—' }}</td>
+                    <td>{{ run.duplicates if run.duplicates is not none else '—' }}</td>
                     <td>{{ run.message or '—' }}</td>
                 </tr>
                 {% endfor %}
                 {% if not runs %}
-                <tr><td colspan="4" class="empty">暂无运行记录</td></tr>
+                <tr><td colspan="7" class="empty">暂无运行记录</td></tr>
                 {% endif %}
             </tbody>
         </table>

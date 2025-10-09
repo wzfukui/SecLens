@@ -9,6 +9,10 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://seclens:seclens@localhost:5432/seclens_dev"
     app_env: str = "development"
     ingest_base_url: str = "http://localhost:8000"
+    log_level: str = "INFO"
+    log_dir: str = "logs"
+    log_max_bytes: int = 5 * 1024 * 1024  # 5 MB
+    log_backup_count: int = 5
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

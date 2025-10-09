@@ -1,6 +1,7 @@
 """Simple background scheduler using threading."""
 from __future__ import annotations
 
+import json
 import logging
 import threading
 from datetime import datetime, timezone
@@ -8,10 +9,11 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from app.database import get_session_factory
-from app.models import Plugin, PluginRun, PluginVersion
-from app.services.plugins import load_callable, should_run, compute_next_run
 from app.config import get_settings
+from app.database import get_session_factory
+from app.logging_utils import setup_logging
+from app.models import Plugin, PluginRun, PluginVersion
+from app.services.plugins import compute_next_run, load_callable, should_run
 
 try:
     import requests
@@ -20,6 +22,41 @@ except ImportError:  # pragma: no cover
 
 LOGGER = logging.getLogger(__name__)
 CHECK_INTERVAL = 30  # seconds
+
+setup_logging()
+
+
+def _extract_summary(
+    result: Any,
+    *,
+    should_proxy_post: bool,
+    ingest_url: str,
+    plugin_slug: str,
+) -> tuple[list[Any], dict[str, Any] | None]:
+    """Return normalized bulletins and ingest response for a collector run."""
+
+    bulletins: list[Any] = []
+    response_data: dict[str, Any] | None = None
+
+    if isinstance(result, tuple):
+        bulletin_payload, response_payload = result
+        if bulletin_payload:
+            bulletins = list(bulletin_payload)
+        if isinstance(response_payload, dict):
+            response_data = response_payload
+    elif isinstance(result, list):
+        bulletins = list(result)
+
+    if requests and bulletins and should_proxy_post:
+        payload = [item.model_dump(mode="json") for item in bulletins]
+        api_response = requests.post(ingest_url, json=payload, timeout=30)
+        api_response.raise_for_status()
+        try:
+            response_data = api_response.json()
+        except ValueError:
+            LOGGER.warning("Ingest response for %s is not JSON-decoded", plugin_slug)
+
+    return bulletins, response_data
 
 
 def run_plugins_once(plugin_ids: list[int] | None = None, *, force: bool = False):
@@ -62,17 +99,57 @@ def run_plugins_once(plugin_ids: list[int] | None = None, *, force: bool = False
                     should_proxy_post = False
 
                 result = func(**runtime_args)
+                bulletins, response_data = _extract_summary(
+                    result,
+                    should_proxy_post=should_proxy_post,
+                    ingest_url=ingest_url,
+                    plugin_slug=plugin.slug,
+                )
 
-                if requests and isinstance(result, tuple):
-                    bulletins, _response = result
-                    if bulletins and should_proxy_post:
-                        payload = [item.model_dump(mode="json") for item in bulletins]
-                        requests.post(ingest_url, json=payload, timeout=30)
+                collected = len(bulletins)
+                accepted = response_data.get("accepted") if isinstance(response_data, dict) else None
+                duplicates = response_data.get("duplicates") if isinstance(response_data, dict) else None
+                if accepted is None and collected:
+                    accepted = collected
+                if duplicates is None and accepted is not None:
+                    duplicates = max(collected - accepted, 0)
+
+                summary_payload = {
+                    "collected": collected,
+                    "accepted": accepted,
+                    "duplicates": duplicates,
+                    "ingest_response": response_data,
+                }
+
                 run.status = "success"
-                run.message = "Completed"
+                message_parts = [f"Collected {collected} items"]
+                if accepted is not None:
+                    message_parts.append(f"accepted={accepted}")
+                if duplicates is not None:
+                    message_parts.append(f"duplicates={duplicates}")
+                run.message = ", ".join(message_parts)
+                try:
+                    run.output = json.dumps(summary_payload, ensure_ascii=False)
+                except (TypeError, ValueError):
+                    run.output = json.dumps(
+                        {
+                            "collected": collected,
+                            "accepted": accepted,
+                            "duplicates": duplicates,
+                        },
+                        ensure_ascii=False,
+                    )
+                LOGGER.info(
+                    "Plugin %s completed: collected=%s accepted=%s duplicates=%s",
+                    plugin.slug,
+                    collected,
+                    accepted,
+                    duplicates,
+                )
             except Exception as exc:  # pylint: disable=broad-except
                 run.status = "failed"
                 run.message = str(exc)
+                LOGGER.exception("Plugin %s failed: %s", plugin.slug, exc)
             finally:
                 finished = datetime.now(timezone.utc)
                 run.finished_at = finished
@@ -98,10 +175,12 @@ def start_scheduler(app: FastAPI):
 
     @app.on_event("startup")
     def _start():  # pragma: no cover
+        LOGGER.info("Starting scheduler thread with interval=%ss", CHECK_INTERVAL)
         thread.start()
 
     @app.on_event("shutdown")
     def _stop():  # pragma: no cover
+        LOGGER.info("Stopping scheduler thread")
         stop_event.set()
         thread.join(timeout=5)
 

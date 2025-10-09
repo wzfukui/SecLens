@@ -13,7 +13,7 @@
 
 ## 阶段一：体系规划与基线搭建
 1. **产品信息基线**
-   - 梳理现有 API、页面、插件契约，补齐 README/AGENTS 中缺失的关键说明。
+   - 梳理现有 API、页面、插件契约，补齐 README/docs/CONTRIBUTING.md 中缺失的关键说明。
    - 输出 UI 设计原则、颜色/排版基线、响应式断点规范。
 2. **工程准备**
    - 引入前端构建工具（Vite/ESBuild）与资产管线，将内联 CSS/JS 拆分成可维护的模块。
@@ -46,7 +46,7 @@
 1. **插件模型与 API**
    - 新增 `plugin_versions`、`plugin_runs`、`plugin_events`，明确版本与实例分离。
    - 上传接口支持覆盖/升级，激活指定版本；提供停用/卸载/删除流程。
-   - 插件契约：标准化 manifest（版本、权限、回调）、运行参数、回调协议，更新 `PLUGIN_SPEC.md`。
+   - 插件契约：标准化 manifest（版本、权限、回调）、运行参数、回调协议，更新 `docs/PLUGIN_SPEC.md`。
 2. **调度与执行**
    - 替换线程调度器（选择 APScheduler/Celery + Redis），支持并发控制、运行超时、失败重试。
    - 运行结果：缓存输出、标准化日志、可视化最近执行记录。
@@ -67,7 +67,7 @@
    - 增加 pre-commit 钩子、CI Pipeline（lint + test + build）。
 3. **文档 & 研发流程**
    - 更新 `README.md`（运行方式、构建流程、插件开发指南）。
-   - 维护 `ROADMAP.md` 与 `AGENTS.md` 的范围说明，增加贡献指南。
+   - 维护 `ROADMAP.md` 与 `docs/CONTRIBUTING.md` 的范围说明，增加贡献指南。
 
 **验收**：CI 绿灯、核心模块覆盖率 ≥ 80%、文档同步更新。
 
@@ -85,6 +85,6 @@
 ---
 
 ## 下一步动作（立即执行）
-1. 调整 `AGENTS.md`，补充新的结构与工作方式。
+1. 调整 `docs/CONTRIBUTING.md`，补充新的结构与工作方式。
 2. 搭建前端构建脚手架，拆分现有模板资产。
 3. 设计新的数据库 schema（`bulletins`, `plugins`, `plugin_versions`, `plugin_runs`) 并准备迁移脚本。

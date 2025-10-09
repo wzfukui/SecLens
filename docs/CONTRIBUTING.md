@@ -1,4 +1,4 @@
-# Repository Guidelines
+# Contributing Guide
 
 ## Project Structure & Module Organization
 - `app/` holds the FastAPI application (routers, schemas, services) and starts at `app/main.py`.

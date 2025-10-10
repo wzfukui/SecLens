@@ -24,6 +24,10 @@ class PackagingError(Exception):
 
 
 def iter_plugin_dirs(resources_dir: Path) -> Iterator[Path]:
+    if (resources_dir / "manifest.json").exists():
+        yield resources_dir
+        return
+
     for entry in sorted(resources_dir.iterdir()):
         if not entry.is_dir():
             continue

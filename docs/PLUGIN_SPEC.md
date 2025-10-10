@@ -3,7 +3,12 @@
 ## Directory & Packaging
 - Each plugin resides in a standalone folder (e.g. `resources/ubuntu_security_notice/`).
 - Required files: `manifest.json`, Python package or module containing the collector, tests, and optional README/state files.
-- Package the folder as `<slug>.zip` preserving relative paths when uploading via `/v1/plugins/upload`.
+- Use `scripts/package_plugins.py` to bundle and (optionally) upload plugins:
+  - Package all resources: `./.venv/bin/python scripts/package_plugins.py`
+  - Package a single plugin directory: `./.venv/bin/python scripts/package_plugins.py --resources-dir resources/redhat_advisory`
+  - Provide `--upload-url http://127.0.0.1:8000/v1/plugins/upload` (and `--token <token>` when needed) to push the generated archive immediately after packaging.
+- The script discovers plugins by locating `manifest.json`. When a directory is passed via `--resources-dir`, it now recognises the directory itself as a plugin, so per-plugin packaging/upload works without nesting.
+- Archives are emitted into `dist/plugins` by default following `<slug>-<version>.zip` naming and preserve relative paths required by `/v1/plugins/upload`.
 
 ## manifest.json Fields
 ```json

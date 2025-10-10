@@ -13,6 +13,14 @@
     Description: Microsoft Security Response Center advisories and revisions
     Home: https://msrc.microsoft.com/update-guide/
     Rss: https://api.msrc.microsoft.com/update-guide/rss
+  - Apple Security Releases
+    Description: Apple security update advisories and Rapid Security Responses
+    Home: https://support.apple.com/en-us/100100
+    Remark: Includes product availability and release dates for Apple platforms
+  - Chrome Releases Stable Updates
+    Description: Chrome stable channel release announcements for desktop and ChromeOS
+    Home: https://chromereleases.googleblog.com/search/label/Stable%20updates
+    Remark: Label feed https://chromereleases.googleblog.com/feeds/posts/default/-/Stable%20updates
 
 # 安全新闻
 - Security News

@@ -76,10 +76,13 @@ def test_collect_normalizes_entries(tmp_path, feed_text, cpu_article_html, alert
     assert first.content.title.startswith("Oracle Critical Patch Update Advisory")
     assert "official_bulletin" in first.topics
     assert "vendor:oracle" in first.labels
-    assert first.extra == {
-        "guid": "cpuoct2025",
-        "link": "https://www.oracle.com/security-alerts/cpuoct2025.html",
-    }
+    assert first.extra is not None
+    assert first.extra.get("guid") == "cpuoct2025"
+    assert first.extra.get("link") == "https://www.oracle.com/security-alerts/cpuoct2025.html"
+    time_meta = first.extra.get("time_meta")
+    assert time_meta is not None
+    assert time_meta.get("applied_timezone") == "UTC"
+    assert time_meta.get("fallback") is False
     assert first.content.body_text and "Oracle Security Alert" in first.content.body_text
     assert first.content.summary == first.content.body_text
     assert "Skip to content" not in first.content.summary

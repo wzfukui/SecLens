@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import List, Sequence
 import logging
@@ -12,6 +11,7 @@ import xml.etree.ElementTree as ET
 import requests
 
 from app.schemas import BulletinCreate, ContentInfo, SourceInfo
+from app.time_utils import resolve_published_at
 
 LOGGER = logging.getLogger(__name__)
 USER_AGENT = "SecLensFreeBufCollector/1.0"
@@ -28,6 +28,9 @@ class FeedEntry:
     description: str | None
     categories: list[str]
     published_at: datetime | None
+    fetched_at: datetime
+    time_meta: dict | None
+    raw_pub_date: str | None
 
 
 class FreeBufCollector:
@@ -82,6 +85,7 @@ class FreeBufCollector:
             raise ValueError("Failed to parse FreeBuf RSS feed") from exc
 
         entries: list[FeedEntry] = []
+        fetched_at = datetime.now(timezone.utc)
         for item in root.findall("./channel/item"):
             link = (item.findtext("link") or "").strip()
             if not link:
@@ -89,7 +93,12 @@ class FreeBufCollector:
             title = (item.findtext("title") or link).strip()
             desc_node = item.findtext("description")
             description = desc_node.strip() if desc_node else None
-            pub_date = self._parse_pub_date(item.findtext("pubDate"))
+            raw_pub_date = item.findtext("pubDate")
+            published_at, time_meta = resolve_published_at(
+                "freebuf_community",
+                [(raw_pub_date, "item.pubDate")],
+                fetched_at=fetched_at,
+            )
             categories = [
                 (cat.text or "").strip()
                 for cat in item.findall("category")
@@ -103,22 +112,13 @@ class FreeBufCollector:
                     link=link,
                     description=description,
                     categories=categories,
-                    published_at=pub_date,
+                    published_at=published_at,
+                    fetched_at=fetched_at,
+                    time_meta=time_meta if time_meta else None,
+                    raw_pub_date=raw_pub_date.strip() if isinstance(raw_pub_date, str) else None,
                 )
             )
         return entries
-
-    @staticmethod
-    def _parse_pub_date(value: str | None) -> datetime | None:
-        if not value:
-            return None
-        try:
-            parsed = parsedate_to_datetime(value)
-        except (TypeError, ValueError):
-            return None
-        if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
-        return parsed.astimezone(timezone.utc)
 
     # --- Normalize ------------------------------------------------------
     def normalize(self, entry: FeedEntry) -> BulletinCreate:
@@ -138,21 +138,31 @@ class FreeBufCollector:
         labels = [f"category:{cat.lower()}" for cat in entry.categories]
         topics = ["community-update"]
 
+        extra: dict[str, object] = {}
+        if entry.categories:
+            extra["categories"] = entry.categories
+        if entry.time_meta:
+            extra["time_meta"] = entry.time_meta
+        if entry.raw_pub_date:
+            extra["raw_pub_date"] = entry.raw_pub_date
+
         return BulletinCreate(
             source=source,
             content=content,
             severity=None,
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=entry.fetched_at,
             labels=labels,
             topics=topics,
-            extra={"categories": entry.categories} if entry.categories else None,
-            raw={"feed_entry": {
-                "title": entry.title,
-                "link": entry.link,
-                "description": entry.description,
-                "categories": entry.categories,
-                "published_at": entry.published_at.isoformat() if entry.published_at else None,
-            }},
+            extra=extra or None,
+            raw={
+                "feed_entry": {
+                    "title": entry.title,
+                    "link": entry.link,
+                    "description": entry.description,
+                    "categories": entry.categories,
+                    "published_at": entry.published_at.isoformat() if entry.published_at else None,
+                }
+            },
         )
 
     # --- Collection -----------------------------------------------------

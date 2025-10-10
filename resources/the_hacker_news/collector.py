@@ -3,13 +3,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
 from typing import List, Sequence
 import xml.etree.ElementTree as ET
 
 import requests
 
 from app.schemas import BulletinCreate, ContentInfo, SourceInfo
+from app.time_utils import resolve_published_at
 
 DEFAULT_FEED_URL = "https://feeds.feedburner.com/TheHackersNews"
 USER_AGENT = "SecLensCollector/0.1"
@@ -23,18 +23,6 @@ REQUEST_HEADERS = {
 class FetchParams:
     feed_url: str = DEFAULT_FEED_URL
     limit: int | None = None
-
-
-def _parse_pub_date(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    try:
-        dt = parsedate_to_datetime(value)
-    except (TypeError, ValueError):
-        return None
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
 
 
 def _trim(text: str | None) -> str | None:
@@ -94,7 +82,12 @@ class HackerNewsCollector:
         }
 
     def normalize(self, item: dict) -> BulletinCreate:
-        published_at = _parse_pub_date(item.get("pub_date"))
+        fetched_at = datetime.now(timezone.utc)
+        published_at, time_meta = resolve_published_at(
+            "the_hacker_news",
+            [(item.get("pub_date"), "item.pubDate")],
+            fetched_at=fetched_at,
+        )
         origin_url = item.get("link")
         description = item.get("description")
         body_text = item.get("content_encoded") or description
@@ -123,6 +116,8 @@ class HackerNewsCollector:
             "guid_attributes": item.get("guid_attributes") or {},
         }
 
+        if time_meta:
+            extra["time_meta"] = time_meta
         raw_payload = {
             key: value
             for key, value in item.items()
@@ -135,7 +130,7 @@ class HackerNewsCollector:
             source=source,
             content=content,
             severity=None,
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=fetched_at,
             labels=labels,
             topics=topics,
             extra=extra,

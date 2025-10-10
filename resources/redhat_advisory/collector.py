@@ -11,6 +11,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from app.schemas import BulletinCreate, ContentInfo, SourceInfo
+from app.time_utils import resolve_published_at
 
 LOGGER = logging.getLogger(__name__)
 API_URL = "https://access.redhat.com/hydra/rest/search/kcs"
@@ -83,15 +84,6 @@ class RedHatAdvisoryCollector:
             return []
         return list(docs)
 
-    def _parse_datetime(self, value: str | None) -> datetime | None:
-        if not value:
-            return None
-        try:
-            return datetime.fromisoformat(value.replace("Z", "+00:00"))
-        except ValueError:
-            LOGGER.debug("Invalid datetime %s", value)
-            return None
-
     def _fetch_article_body(self, url: str | None) -> str | None:
         if not url:
             return None
@@ -125,7 +117,12 @@ class RedHatAdvisoryCollector:
     def normalize(self, item: dict) -> BulletinCreate:
         external_id = str(item.get("id")) if item.get("id") else None
         origin_url = item.get("view_uri")
-        published_at = self._parse_datetime(item.get("portal_publication_date"))
+        fetched_at = datetime.now(timezone.utc)
+        published_at, time_meta = resolve_published_at(
+            "redhat_advisory",
+            [(item.get("portal_publication_date"), "item.portal_publication_date")],
+            fetched_at=fetched_at,
+        )
         severity = item.get("portal_severity")
         summary = item.get("portal_synopsis") or item.get("allTitle")
         body_text = self._fetch_article_body(origin_url)
@@ -146,6 +143,8 @@ class RedHatAdvisoryCollector:
             "product_names": products,
             "update_date": item.get("portal_update_date"),
         }
+        if time_meta:
+            extra["time_meta"] = time_meta
 
         bulletin = BulletinCreate(
             source=SourceInfo(
@@ -160,7 +159,7 @@ class RedHatAdvisoryCollector:
                 published_at=published_at,
             ),
             severity=severity,
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=fetched_at,
             labels=labels,
             topics=topics,
             extra={k: v for k, v in extra.items() if v},

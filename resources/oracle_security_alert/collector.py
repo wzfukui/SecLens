@@ -5,7 +5,6 @@ import logging
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import List, Sequence
 from urllib.parse import urlparse
@@ -14,6 +13,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from app.schemas import BulletinCreate, ContentInfo, SourceInfo
+from app.time_utils import resolve_published_at
 
 LOGGER = logging.getLogger(__name__)
 FEED_URL = "https://www.oracle.com/ocom/groups/public/@otn/documents/webcontent/rss-otn-sec.xml"
@@ -32,6 +32,9 @@ class FeedEntry:
     link: str
     description: str | None
     published_at: datetime | None
+    fetched_at: datetime
+    time_meta: dict | None
+    raw_pub_date: str | None
 
 
 class OracleSecurityCollector:
@@ -91,7 +94,13 @@ class OracleSecurityCollector:
             title = (item.findtext("title") or link).strip()
             description = item.findtext("description") or None
             guid = (item.findtext("guid") or link or title).strip()
-            published_at = self._parse_pub_date(item.findtext("pubDate"))
+            fetched_at = datetime.now(timezone.utc)
+            raw_pub_date = item.findtext("pubDate")
+            published_at, time_meta = resolve_published_at(
+                "oracle_security_alert",
+                [(raw_pub_date, "item.pubDate")],
+                fetched_at=fetched_at,
+            )
             if not link:
                 continue
             items.append(
@@ -101,22 +110,12 @@ class OracleSecurityCollector:
                     link=link,
                     description=description.strip() if description else None,
                     published_at=published_at,
+                    fetched_at=fetched_at,
+                    time_meta=time_meta if time_meta else None,
+                    raw_pub_date=raw_pub_date.strip() if isinstance(raw_pub_date, str) else None,
                 )
             )
         return items
-
-    @staticmethod
-    def _parse_pub_date(value: str | None) -> datetime | None:
-        if not value:
-            return None
-        try:
-            parsed = parsedate_to_datetime(value)
-        except (TypeError, ValueError):
-            LOGGER.warning("Invalid pubDate '%s'", value)
-            return None
-        if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
-        return parsed.astimezone(timezone.utc)
 
     # Normalize -------------------------------------------------------
     def normalize(self, entry: FeedEntry) -> BulletinCreate:
@@ -146,11 +145,15 @@ class OracleSecurityCollector:
             "guid": entry.guid,
             "link": entry.link,
         }
+        if entry.time_meta:
+            extra["time_meta"] = entry.time_meta
+        if entry.raw_pub_date:
+            extra["raw_pub_date"] = entry.raw_pub_date
         return BulletinCreate(
             source=source,
             content=content,
             severity=None,
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=entry.fetched_at,
             labels=labels,
             topics=topics,
             extra=extra,

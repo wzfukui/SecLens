@@ -28,6 +28,12 @@
     "ingest_url": "https://host/v1/ingest/bulletins",
     "token": "<api token>"
   },
+  "time_policy": {
+    "default_timezone": "Asia/Shanghai",
+    "naive_strategy": "assume_default",
+    "max_future_drift_minutes": 120,
+    "max_past_drift_days": 365
+  },
   "ui": {
     "group_slug": "vulnerability_alerts",
     "group_title": "漏洞预警",
@@ -43,10 +49,16 @@
 - `source`: metadata about the upstream feed; include `publisher`, `homepage`, `feed_url`, and other relevant keys.
 - `schedule`: polling interval in seconds or cron string, interpreted by scheduler.
 - `runtime`: free-form config merged into kwargs when the entrypoint runs.
+- `time_policy`: 统一的时间解析策略。字段说明：
+  - `default_timezone`：当原始时间缺失时区信息时采用的 IANA 时区标识（如 `Asia/Shanghai`）。
+  - `naive_strategy`：`assume_default` / `utc` / `reject`，分别代表“绑定默认时区”“保持 UTC”或“抛弃该时间值”。
+  - `max_future_drift_minutes`：允许发布时间领先抓取时间的最大分钟数，超过则降级使用 `fetched_at` 并打标。
+  - `max_past_drift_days`：允许发布时间落后的最大天数，用于过滤过旧内容（可选）。
 - `ui`: optional UI metadata powering homepage/source 自动分组。常用键包括：`group_slug` / `group_title` / `group_description`（分组信息）、`group_order`（分组排序）、`source_title`（来源展示名）与 `source_order`（分组内排序）。
 
 ## Collector Contract
 - Use `app.schemas.BulletinCreate` to normalize fields; populate `source.source_slug`, `content.title`, `content.published_at`, and `raw`.
+- 调用 `app.time_utils.resolve_published_at`（即将提供的统一入口）完成时间解析，并把 `time_meta` 写进 `BulletinCreate.extra` 以便追踪。
 - Only call the ingest API (`POST /v1/ingest/bulletins`) through HTTPS and include the Bearer token from manifest.
 - Log via `logging` and surface exceptions; the platform captures stdout/stderr.
 - Maintain idempotency with dedupe keys (`external_id`, `origin_url`) and persist cursors inside the plugin directory (e.g. `.cursor`).

@@ -10,6 +10,7 @@ import logging
 import requests
 
 from app.schemas import BulletinCreate, ContentInfo, SourceInfo
+from app.time_utils import resolve_published_at
 
 LOGGER = logging.getLogger(__name__)
 API_URL = "https://t.aliyun.com/abs/bulletin/bulletinQuery"
@@ -59,13 +60,15 @@ class AliyunCollector:
         return list(info)
 
     def normalize(self, item: dict) -> BulletinCreate:
-        published_at = None
-        publish_time = item.get("publishTime")
-        if publish_time:
-            try:
-                published_at = datetime.fromtimestamp(int(publish_time) / 1000, tz=timezone.utc)
-            except (TypeError, ValueError):
-                LOGGER.warning("Invalid publishTime %s", publish_time)
+        fetched_at = datetime.now(timezone.utc)
+        published_at, time_meta = resolve_published_at(
+            "aliyun_security",
+            [
+                (item.get("publishTime"), "item.publishTime"),
+                (item.get("publishDate"), "item.publishDate"),
+            ],
+            fetched_at=fetched_at,
+        )
 
         title = item.get("titleFill") or item.get("title") or ""
         origin_url = item.get("url")
@@ -113,12 +116,14 @@ class AliyunCollector:
                 extra["ext_info"] = ext_info
         elif isinstance(ext_info, dict):
             extra["ext_info"] = ext_info
+        if time_meta:
+            extra["time_meta"] = time_meta
 
         return BulletinCreate(
             source=source_info,
             content=content_info,
             severity=item.get("securityLevel"),
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=fetched_at,
             labels=labels,
             topics=topics,
             extra=extra,

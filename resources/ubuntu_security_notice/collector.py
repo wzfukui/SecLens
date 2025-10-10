@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Iterable, List, Sequence
 import json
@@ -13,6 +12,7 @@ import xml.etree.ElementTree as ET
 import requests
 
 from app.schemas import BulletinCreate, ContentInfo, SourceInfo
+from app.time_utils import resolve_published_at
 
 LOGGER = logging.getLogger(__name__)
 USER_AGENT = "SecLensUbuntuCollector/1.0"
@@ -29,6 +29,9 @@ class FeedEntry:
     summary: str | None
     published_at: datetime
     guid: str | None
+    fetched_at: datetime
+    time_meta: dict | None
+    raw_pub_date: str | None
 
 
 def _load_feed_url() -> str:
@@ -39,18 +42,6 @@ def _load_feed_url() -> str:
     except FileNotFoundError:
         pass
     return "https://ubuntu.com/security/notices/rss.xml"
-
-
-def _parse_pub_date(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    try:
-        dt = parsedate_to_datetime(value)
-    except (TypeError, ValueError):
-        return None
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
 
 
 def _clean_text(value: str | None) -> str | None:
@@ -118,11 +109,27 @@ class UbuntuSecurityCollector:
             notice_id = self._extract_notice_id(link)
             title = _clean_text(item.findtext("title")) or notice_id
             summary = _clean_text(item.findtext("description"))
-            pub_date = _parse_pub_date(item.findtext("pubDate"))
-            if pub_date is None:
-                pub_date = datetime.now(timezone.utc)
+            fetched_at = datetime.now(timezone.utc)
+            raw_pub_date = item.findtext("pubDate")
+            pub_date, time_meta = resolve_published_at(
+                "ubuntu_security",
+                [(raw_pub_date, "item.pubDate")],
+                fetched_at=fetched_at,
+            )
             guid = _clean_text(item.findtext("guid"))
-            entries.append(FeedEntry(notice_id, title, link, summary, pub_date, guid))
+            entries.append(
+                FeedEntry(
+                    notice_id=notice_id,
+                    title=title,
+                    link=link,
+                    summary=summary,
+                    published_at=pub_date or fetched_at,
+                    guid=guid,
+                    fetched_at=fetched_at,
+                    time_meta=time_meta if time_meta else None,
+                    raw_pub_date=raw_pub_date.strip() if isinstance(raw_pub_date, str) else None,
+                )
+            )
         return entries
 
     def fetch_detail(self, notice_id: str, link: str) -> dict:
@@ -136,15 +143,16 @@ class UbuntuSecurityCollector:
         summary = _clean_text(detail.get("summary")) or entry.summary
         body_text = detail.get("description") or summary
         published = detail.get("published")
-        published_at = entry.published_at
-        if isinstance(published, str):
-            try:
-                parsed = datetime.fromisoformat(published)
-                if parsed.tzinfo is None:
-                    parsed = parsed.replace(tzinfo=timezone.utc)
-                published_at = parsed.astimezone(timezone.utc)
-            except ValueError:
-                pass
+        candidates = [
+            (published, "detail.published"),
+            (entry.published_at, "entry.published_at"),
+            (entry.raw_pub_date, "feed.pubDate"),
+        ]
+        published_at, time_meta = resolve_published_at(
+            "ubuntu_security",
+            candidates,
+            fetched_at=entry.fetched_at,
+        )
 
         source = SourceInfo(
             source_slug="ubuntu_security",
@@ -191,12 +199,18 @@ class UbuntuSecurityCollector:
             extra["cve_ids"] = cve_ids
         if entry.guid:
             extra["guid"] = entry.guid
+        if entry.time_meta:
+            extra.setdefault("time_meta_feed", entry.time_meta)
+        if time_meta:
+            extra["time_meta"] = time_meta
+        if entry.raw_pub_date:
+            extra.setdefault("raw_pub_date", entry.raw_pub_date)
 
         return BulletinCreate(
             source=source,
             content=content,
             severity=None,
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=entry.fetched_at,
             labels=labels,
             topics=topics,
             extra=extra or None,

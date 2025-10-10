@@ -14,6 +14,7 @@ import re
 import requests
 
 from app.schemas import BulletinCreate, ContentInfo, SourceInfo
+from app.time_utils import resolve_published_at
 
 LOGGER = logging.getLogger(__name__)
 USER_AGENT = "SecLensTencentCloudCollector/1.0"
@@ -238,11 +239,21 @@ class TencentCloudCollector:
             external_id=summary.announce_id,
             origin_url=origin_url,
         )
+        fetched_at = datetime.now(timezone.utc)
+        published_at, time_meta = resolve_published_at(
+            "tencent_cloud_security",
+            [
+                (summary.begin_time, "summary.begin_time"),
+                (summary.add_time, "summary.add_time"),
+            ],
+            fetched_at=fetched_at,
+        )
+
         content = ContentInfo(
             title=summary.title,
             summary=body_text or summary.title,
             body_text=body_text,
-            published_at=summary.begin_time,
+            published_at=published_at,
             language="zh",
         )
 
@@ -266,12 +277,14 @@ class TencentCloudCollector:
             extra["announce_type"] = summary.announce_type
         if content_html:
             extra["content_html"] = unescape(content_html)
+        if time_meta:
+            extra["time_meta"] = time_meta
 
         return BulletinCreate(
             source=source,
             content=content,
             severity=None,
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=fetched_at,
             labels=labels,
             topics=topics,
             extra=extra,

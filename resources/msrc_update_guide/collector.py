@@ -3,13 +3,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
 from typing import Iterable, List, Sequence
 import xml.etree.ElementTree as ET
 
 import requests
 
 from app.schemas import BulletinCreate, ContentInfo, SourceInfo
+from app.time_utils import resolve_published_at
 
 FEED_URL = "https://api.msrc.microsoft.com/update-guide/rss"
 USER_AGENT = "SecLensCollector/0.1"
@@ -23,18 +23,6 @@ REQUEST_HEADERS = {
 class FetchParams:
     feed_url: str = FEED_URL
     limit: int | None = None
-
-
-def _parse_pub_date(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    try:
-        dt = parsedate_to_datetime(value)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt.astimezone(timezone.utc)
-    except (TypeError, ValueError):
-        return None
 
 
 def _get_text(element: ET.Element | None) -> str | None:
@@ -92,7 +80,12 @@ class MsrcCollector:
         }
 
     def normalize(self, item: dict) -> BulletinCreate:
-        published_at = _parse_pub_date(item.get("pub_date"))
+        fetched_at = datetime.now(timezone.utc)
+        published_at, time_meta = resolve_published_at(
+            "msrc_update_guide",
+            [(item.get("pub_date"), "item.pubDate")],
+            fetched_at=fetched_at,
+        )
         title = item.get("title") or ""
         description = item.get("description")
         origin_url = item.get("link")
@@ -128,6 +121,8 @@ class MsrcCollector:
             "guid": guid,
             "guid_attributes": item.get("guid_attributes") or {},
         }
+        if time_meta:
+            extra["time_meta"] = time_meta
 
         raw_payload = {
             key: value
@@ -141,7 +136,7 @@ class MsrcCollector:
             source=source,
             content=content,
             severity=None,
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=fetched_at,
             labels=labels,
             topics=topics,
             extra=extra,

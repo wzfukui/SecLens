@@ -8,6 +8,7 @@ from typing import Iterable, List, Sequence
 import requests
 
 from app.schemas import BulletinCreate, ContentInfo, SourceInfo
+from app.time_utils import resolve_published_at
 
 API_URL = "https://securitybulletin.huawei.com/vdmsapi/services/vdmsapi/rest/v1/enterprise/advisories"
 USER_AGENT = "SecLensCollector/0.1"
@@ -32,30 +33,6 @@ class FetchParams:
     publish_date_to: str = ""
     product_line: str = ""
     range: int = 1
-
-
-def _parse_datetime(value: object) -> datetime | None:
-    if value in (None, ""):
-        return None
-    if isinstance(value, (int, float)):
-        try:
-            # API returns milliseconds since epoch.
-            if value > 10_000_000_000:
-                value = value / 1000
-            return datetime.fromtimestamp(float(value), tz=timezone.utc)
-        except (TypeError, ValueError, OSError):
-            return None
-    if isinstance(value, str):
-        text = value.strip()
-        for fmt in ("%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
-            try:
-                dt = datetime.strptime(text, fmt)
-                if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
-                return dt.astimezone(timezone.utc)
-            except ValueError:
-                continue
-    return None
 
 
 class HuaweiCollector:
@@ -111,12 +88,17 @@ class HuaweiCollector:
         origin_url = item.get("advisoryUrl") or item.get("url") or item.get("allPath")
         summary = item.get("summary") or item.get("overview") or item.get("description")
         body_text = item.get("content") or item.get("details") or summary
-        published_at = (
-            _parse_datetime(item.get("publishTime"))
-            or _parse_datetime(item.get("pubTime"))
-            or _parse_datetime(item.get("publishDate"))
-            or _parse_datetime(item.get("releaseTime"))
-            or _parse_datetime(item.get("releaseDate"))
+        fetched_at = datetime.now(timezone.utc)
+        published_at, time_meta = resolve_published_at(
+            "huawei_security",
+            [
+                (item.get("publishTime"), "item.publishTime"),
+                (item.get("pubTime"), "item.pubTime"),
+                (item.get("publishDate"), "item.publishDate"),
+                (item.get("releaseTime"), "item.releaseTime"),
+                (item.get("releaseDate"), "item.releaseDate"),
+            ],
+            fetched_at=fetched_at,
         )
         severity = item.get("severity") or item.get("level")
         labels: list[str] = []
@@ -170,6 +152,8 @@ class HuaweiCollector:
             extra["hw_psirt_ids"] = hw_ids
         if item.get("vul"):
             extra["vulnerabilities"] = item.get("vul")
+        if time_meta:
+            extra["time_meta"] = time_meta
 
         raw = dict(item)
         if cve_ids:
@@ -179,7 +163,7 @@ class HuaweiCollector:
             source=source_info,
             content=content,
             severity=str(severity) if severity else None,
-            fetched_at=datetime.now(timezone.utc),
+            fetched_at=fetched_at,
             labels=normalized_labels,
             topics=topics,
             extra=extra,

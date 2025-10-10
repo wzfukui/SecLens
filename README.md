@@ -30,3 +30,11 @@ uvicorn app.main:app --reload
 ```
 
 应用启动时会自动调用 `Base.metadata.create_all` 初始化数据库表，如使用新的迁移脚本请参考 `scripts/init_db.py`。插件打包、脚本执行等更多用法见 `docs/CONTRIBUTING.md`。
+
+## 时间处理策略
+
+- 平台统一以 UTC 存储与传递发布时间，渲染时再根据用户偏好（默认 UTC+08:00）做本地化，避免不同来源之间排序错乱。
+- 解析顺序遵循「item 字段 → feed/channel 提示 → 插件配置默认时区 → `fetched_at` 兜底」，同时记录命中的层级，写入 `bulletin.extra.time_meta` 便于追踪。
+- 插件必须在 manifest 中声明 `time_policy.default_timezone` 等元数据（详见 `docs/PLUGIN_SPEC.md`），使没有时区信息的源可以按来源所在地解释时间。
+- 解析结果需通过质量校验：未来漂移上限、过旧数据过滤、解析失败告警等逻辑在 `app/time_utils.py` 中集中实现，新老插件共享。
+- 历史来源的原始时间格式、默认时区建议与校验阈值整理在 `docs/AGENTS.md`，后续新增/调试插件时需同步更新该表格。

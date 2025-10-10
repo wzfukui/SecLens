@@ -1,0 +1,39 @@
+defaults:
+  default_timezone: UTC
+  naive_strategy: assume_default
+  max_future_drift_minutes: 180
+  max_past_drift_days: 730
+
+sources:
+  aliyun_security:
+    naive_strategy: utc
+  doonsec_wechat:
+    default_timezone: Asia/Shanghai
+    naive_strategy: assume_default
+    forbid_midnight_if_no_time: true
+  exploit_db:
+    naive_strategy: assume_default
+  freebuf_community:
+    naive_strategy: assume_default
+  huawei_security:
+    default_timezone: Asia/Shanghai
+    naive_strategy: assume_default
+    forbid_midnight_if_no_time: true
+  linuxsecurity_hybrid:
+    naive_strategy: assume_default
+  msrc_update_guide:
+    naive_strategy: utc
+  oracle_security_alert:
+    naive_strategy: assume_default
+    max_future_drift_minutes: 10080
+  redhat_advisory:
+    naive_strategy: utc
+  sihou_news:
+    naive_strategy: assume_default
+  tencent_cloud_security:
+    default_timezone: Asia/Shanghai
+    naive_strategy: assume_default
+  the_hacker_news:
+    naive_strategy: assume_default
+  ubuntu_security:
+    naive_strategy: assume_default

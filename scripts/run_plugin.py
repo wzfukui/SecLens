@@ -21,6 +21,10 @@ from resources.doonsec_wechat.collector import (
     FetchParams as DoonsecFetchParams,
     run as run_doonsec,
 )
+from resources.tc260_consultations.collector import (
+    FetchParams as TC260FetchParams,
+    run as run_tc260,
+)
 from resources.ccgp_local_procurement.collector import (
     FetchParams as CCGPLocalFetchParams,
     run as run_ccgp_local,
@@ -57,6 +61,7 @@ def parse_args() -> argparse.Namespace:
             "exploit_db",
             "ccgp_local_procurement",
             "ccgp_central_procurement",
+            "tc260_consultations",
             "ubuntu_security_notice",
             "oracle_security_alert",
         ],
@@ -154,6 +159,13 @@ def run_plugin(args: argparse.Namespace) -> tuple[list[BulletinCreate], dict | N
             list_url=args.feed_url or defaults.list_url,
         )
         return run_ccgp_central(args.ingest_url, args.token, params=params)
+    if args.source == "tc260_consultations":
+        defaults = TC260FetchParams()
+        params = TC260FetchParams(
+            limit=args.limit or defaults.limit,
+            list_url=args.feed_url or defaults.list_url,
+        )
+        return run_tc260(args.ingest_url, args.token, params=params)
     if args.source == "freebuf_community":
         bulletins, response = run_freebuf(args.ingest_url, args.token, force=args.force)
         return bulletins, response

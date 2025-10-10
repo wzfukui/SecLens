@@ -45,3 +45,6 @@ sources:
     naive_strategy: assume_default
   ubuntu_security:
     naive_strategy: assume_default
+  tc260_consultations:
+    default_timezone: Asia/Shanghai
+    naive_strategy: assume_default

@@ -63,4 +63,23 @@ def get_current_admin_user(
     return user
 
 
-__all__ = ["oauth2_scheme", "get_current_user", "get_current_active_user", "get_current_admin_user"]
+def get_optional_user(
+    request: Request,
+    token: str | None = Depends(oauth2_scheme),
+    db: Session = Depends(get_db_session),
+) -> models.User | None:
+    """Best-effort user resolution that returns None on auth errors."""
+
+    try:
+        return get_current_user(request=request, token=token, db=db)
+    except HTTPException:
+        return None
+
+
+__all__ = [
+    "oauth2_scheme",
+    "get_optional_user",
+    "get_current_user",
+    "get_current_active_user",
+    "get_current_admin_user",
+]

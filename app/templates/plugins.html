@@ -1,4 +1,11 @@
 {% extends "base.html" %}
+{% block extra_css %}
+<style>
+.plugins-table td.timestamp-subtle {
+    color: #94a3b8;
+}
+</style>
+{% endblock %}
 {% block content %}
 <section class="static-page">
     <div>
@@ -24,9 +31,9 @@
                     <th>状态</th>
                     <th>调度</th>
                     <th>采集总量</th>
-                    <th>上次运行</th>
-                    <th>下次运行</th>
-                    <th>上传时间</th>
+                    <th>上次运行 ({{ display_tz_label }})</th>
+                    <th>下次运行 ({{ display_tz_label }})</th>
+                    <th>上传时间 ({{ display_tz_label }})</th>
                 </tr>
             </thead>
             <tbody>
@@ -35,7 +42,7 @@
                     <td>
                         <strong><a href="/dashboard/plugins/{{ plugin.slug }}">{{ plugin.name }}</a></strong>
                         <div class="slug">{{ plugin.slug }}</div>
-                        {% if not plugin.is_active %}
+                        {% if is_admin and not plugin.is_active %}
                         <button class="activate-btn" data-id="{{ plugin.id }}">激活并运行</button>
                         {% endif %}
                     </td>
@@ -46,8 +53,8 @@
                     <td>{{ plugin.schedule or '未配置' }}</td>
                     <td>{{ plugin.total_items }}</td>
                     <td>{{ plugin.last_run_at or '—' }}</td>
-                    <td>{{ plugin.next_run_at or '—' }}</td>
-                    <td>{{ plugin.created_at }}</td>
+                    <td class="timestamp-subtle">{{ plugin.next_run_at or '—' }}</td>
+                    <td class="timestamp-subtle">{{ plugin.created_at }}</td>
                 </tr>
                 {% endfor %}
                 {% if not plugins %}

@@ -8,7 +8,9 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, selectinload
 
+from app import models
 from app.database import get_db_session
+from app.dependencies import get_current_admin_user
 from app.models import Plugin, PluginRun, PluginVersion
 from app.schemas import (
     PluginActivateRequest,
@@ -194,6 +196,7 @@ def activate_plugin(
     plugin_id: int,
     payload: PluginActivateRequest,
     db: Session = Depends(get_db_session),
+    _: models.User = Depends(get_current_admin_user),
 ) -> PluginInfo:
     plugin = _load_plugin(db, plugin_id)
     if plugin is None:
@@ -298,8 +301,14 @@ def list_plugin_runs(
             )
         )
     return payload
+
+
 @router.post("/{plugin_id}/run", response_model=PluginInfo)
-def run_plugin_now(plugin_id: int, db: Session = Depends(get_db_session)) -> PluginInfo:
+def run_plugin_now(
+    plugin_id: int,
+    db: Session = Depends(get_db_session),
+    _: models.User = Depends(get_current_admin_user),
+) -> PluginInfo:
     plugin = _load_plugin(db, plugin_id)
     if plugin is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plugin not found")

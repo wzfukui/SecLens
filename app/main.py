@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 from sqlalchemy.orm import Session, selectinload
 
-from app import crud
+from app import crud, models
 from app.services import build_home_sections, HomeSection, SourceSection
 from scripts.scheduler_service import start_scheduler
 from app.database import Base, get_db_session, get_engine, get_session_factory
@@ -24,6 +24,7 @@ from app.logging_utils import setup_logging
 from app.utils.datetime import format_display, get_display_timezone, to_display_tz
 from app.config import get_settings
 from app.utils.security import hash_password
+from app.dependencies import get_optional_user
 
 from app.routers import admin, auth, bulletins, feeds, ingest, plugins, users
 from app.models import Plugin, Bulletin
@@ -202,7 +203,11 @@ def create_app() -> FastAPI:
         )
 
     @app.get("/dashboard/plugins", response_class=HTMLResponse, tags=["pages"])
-    def plugin_dashboard(request: Request, db: Session = Depends(get_db_session)) -> HTMLResponse:
+    def plugin_dashboard(
+        request: Request,
+        db: Session = Depends(get_db_session),
+        current_user: Optional[models.User] = Depends(get_optional_user),
+    ) -> HTMLResponse:
         plugin_rows = (
             db.query(Plugin)
             .options(
@@ -218,8 +223,20 @@ def create_app() -> FastAPI:
             .all()
         )
 
+        display_tz = get_display_timezone()
+        sample_local = datetime.now(timezone.utc).astimezone(display_tz)
+        offset = sample_local.utcoffset()
+        if offset is None:
+            display_tz_label = "UTC"
+        else:
+            total_minutes = int(offset.total_seconds() // 60)
+            sign = "+" if total_minutes >= 0 else "-"
+            total_minutes = abs(total_minutes)
+            hours, minutes = divmod(total_minutes, 60)
+            display_tz_label = f"UTC{sign}{hours:02d}:{minutes:02d}"
+
         def fmt(dt: Optional[datetime]) -> Optional[str]:
-            return format_display(dt)
+            return format_display(dt, pattern="%Y-%m-%d %H:%M")
 
         plugins_payload: list[dict[str, object]] = []
         active = 0
@@ -282,6 +299,8 @@ def create_app() -> FastAPI:
                 "summary": summary,
                 "plugins": plugins_payload,
                 "page_id": "plugins-dashboard",
+                "display_tz_label": display_tz_label,
+                "is_admin": bool(current_user and current_user.is_admin),
             },
         )
 

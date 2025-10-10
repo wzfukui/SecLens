@@ -167,3 +167,47 @@ def test_plugin_detail_page_shows_activate_button_for_admin():
 
     assert response.status_code == 200
     assert "激活新版本并立即运行" in response.text
+
+
+def test_plugin_detail_page_hides_activate_button_when_no_pending_version():
+    client = create_test_client()
+    SessionFactory = database._SessionLocal  # type: ignore[attr-defined]
+    assert SessionFactory is not None
+
+    plugin_slug = "stable_plugin"
+
+    with SessionFactory() as session:
+        _add_plugin(session, slug=plugin_slug, status="active", is_active=True)
+        plugin = session.query(Plugin).filter(Plugin.slug == plugin_slug).first()
+        assert plugin is not None
+        now = datetime.now(timezone.utc)
+        old_version = PluginVersion(
+            plugin_id=plugin.id,
+            version="0.9.0",
+            entrypoint="collector:run",
+            schedule="1800",
+            status="inactive",
+            is_active=False,
+            upload_path="/tmp/old",
+            manifest={"version": "0.9.0"},
+            created_at=now - timedelta(days=1),
+            updated_at=now - timedelta(days=1),
+        )
+        plugin.versions.append(old_version)
+        session.commit()
+
+    class _DummyAdmin:
+        is_admin = True
+        is_active = True
+
+    dummy_admin = _DummyAdmin()
+
+    def override_optional_user(request: Request, token: str | None = None):  # type: ignore[override]
+        return dummy_admin
+
+    client.app.dependency_overrides[get_optional_user] = override_optional_user
+    response = client.get(f"/dashboard/plugins/{plugin_slug}")
+    client.app.dependency_overrides.pop(get_optional_user, None)
+
+    assert response.status_code == 200
+    assert "激活新版本并立即运行" not in response.text

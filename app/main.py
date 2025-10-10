@@ -354,11 +354,15 @@ def create_app() -> FastAPI:
                 }
             )
 
+        current_created_at = (
+            (current_version.created_at or fallback_dt) if current_version else fallback_dt
+        )
         pending_candidate = next(
             (
                 version
                 for version in versions_sorted
-                if not version.is_active and version.status in {"uploaded", "inactive"}
+                if version.status == "uploaded"
+                and (version.created_at or fallback_dt) > current_created_at
             ),
             None,
         )

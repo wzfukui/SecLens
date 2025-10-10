@@ -73,7 +73,7 @@ def user_subscription_feed(
     for bulletin in filtered:
         item = ET.SubElement(channel, "item")
         ET.SubElement(item, "title").text = bulletin.title
-        link = bulletin.origin_url or f"{base_url.rstrip('/')}/v1/bulletins/{bulletin.id}"
+        link = str(bulletin.origin_url) if bulletin.origin_url else f"{base_url.rstrip('/')}/v1/bulletins/{bulletin.id}"
         ET.SubElement(item, "link").text = link
         summary = bulletin.summary or (bulletin.body_text[:400] if bulletin.body_text else "")
         if summary:

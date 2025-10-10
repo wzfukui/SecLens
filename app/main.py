@@ -182,7 +182,12 @@ def create_app() -> FastAPI:
         return templates.TemplateResponse(
             request=request,
             name="plugin_dev.html",
-            context={"title": "插件开发指南", "page_id": "plugin-dev"},
+            context={
+                "title": "SecLens 插件开发指南",
+                "header": "SecLens 插件开发指南",
+                "header_href": None,
+                "page_id": "plugin-dev",
+            },
         )
 
     @app.get("/about", response_class=HTMLResponse, tags=["pages"])
@@ -190,7 +195,12 @@ def create_app() -> FastAPI:
         return templates.TemplateResponse(
             request=request,
             name="about.html",
-            context={"title": "关于 SecLens", "page_id": "about"},
+            context={
+                "title": "关于 SecLens",
+                "header": "关于 SecLens",
+                "header_href": None,
+                "page_id": "about",
+            },
         )
 
     @app.get("/terms", response_class=HTMLResponse, tags=["pages"])
@@ -198,7 +208,12 @@ def create_app() -> FastAPI:
         return templates.TemplateResponse(
             request=request,
             name="terms.html",
-            context={"title": "SecLens 服务协议", "page_id": "terms"},
+            context={
+                "title": "SecLens 服务协议",
+                "header": "SecLens 服务协议",
+                "header_href": None,
+                "page_id": "terms",
+            },
         )
 
     @app.get("/privacy", response_class=HTMLResponse, tags=["pages"])
@@ -206,7 +221,12 @@ def create_app() -> FastAPI:
         return templates.TemplateResponse(
             request=request,
             name="privacy.html",
-            context={"title": "SecLens 隐私条款", "page_id": "privacy"},
+            context={
+                "title": "SecLens 隐私条款",
+                "header": "SecLens 隐私条款",
+                "header_href": None,
+                "page_id": "privacy",
+            },
         )
 
     @app.get("/login", response_class=HTMLResponse, tags=["pages"])
@@ -230,7 +250,12 @@ def create_app() -> FastAPI:
         return templates.TemplateResponse(
             request=request,
             name="dashboard.html",
-            context={"title": "个人控制台", "page_id": "dashboard"},
+            context={
+                "title": "SecLens 控制台",
+                "header": "SecLens 控制台",
+                "header_href": None,
+                "page_id": "dashboard",
+            },
         )
 
     @app.get("/dashboard/plugins", response_class=HTMLResponse, tags=["pages"])
@@ -315,8 +340,9 @@ def create_app() -> FastAPI:
             request=request,
             name="plugins.html",
             context={
-                "title": "插件运行监控",
-                "header": "插件运行监控",
+                "title": "SecLens 插件运行监控",
+                "header": "SecLens 插件运行监控",
+                "header_href": None,
                 "summary": summary,
                 "plugins": plugins_payload,
                 "page_id": "plugins-dashboard",
@@ -501,8 +527,9 @@ def create_app() -> FastAPI:
             request=request,
             name="detail.html",
             context={
-                "title": bulletin_data.title,
-                "header": "情报详情",
+                "title": "网安资讯详情 - SecLens 情报雷达",
+                "header": "网安资讯详情 - SecLens 情报雷达",
+                "header_href": None,
                 "bulletin": bulletin_data,
                 "plugin_exists": plugin_exists,
                 "page_id": "bulletin-detail",

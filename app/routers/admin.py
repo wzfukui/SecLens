@@ -36,7 +36,9 @@ def admin_dashboard(
         request=request,
         name="admin_dashboard.html",
         context={
-            "title": "管理员中心",
+            "title": "SecLens 管理员中心",
+            "header": "SecLens 管理员中心",
+            "header_href": None,
             "page_id": "admin",
             "user": current_user,
             "codes": codes,

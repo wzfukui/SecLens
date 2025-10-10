@@ -81,8 +81,14 @@
             >
         </a>
         <div class="hero-content">
-            <h1><a href="/">{{ header or 'SecLens 情报雷达' }}</a></h1>
-            <p>聚合官方安全公告、厂商发布与热点资讯，支持分组浏览、过滤和 RSS 订阅，让你的安全情报体系更加高效。</p>
+            {% set header_text = header or 'SecLens 情报雷达' %}
+            {% set header_href = header_href if header_href is defined else '/' %}
+            {% if header_href %}
+                <h1><a href="{{ header_href }}">{{ header_text }}</a></h1>
+            {% else %}
+                <h1>{{ header_text }}</h1>
+            {% endif %}
+            <p>汇集权威漏洞通告与行业要闻，结合分组浏览、智能过滤、RSS 和 Webhook 推送，多通道同步你的安全情报视野。</p>
         </div>
     </div>
     <div class="global-menu">

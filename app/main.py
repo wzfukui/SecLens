@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 import json
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import func
 
@@ -66,6 +66,16 @@ def create_app() -> FastAPI:
         return formatted or ""
 
     templates.env.filters["display_time"] = display_time_filter
+
+    def render_extra_filter(value: Any) -> str:
+        """Render extra JSON fields without escaping non-ASCII characters."""
+        if value is None:
+            return ""
+        if isinstance(value, (dict, list)):
+            return json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True)
+        return json.dumps(value, ensure_ascii=False) if not isinstance(value, str) else value
+
+    templates.env.filters["render_extra"] = render_extra_filter
 
     start_scheduler(app)
     if STATIC_DIR.exists():

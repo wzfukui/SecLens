@@ -75,14 +75,7 @@
                         {% if bulletin.extra %}
                             <details class="extra-details">
                                 <summary>扩展字段</summary>
-                                <dl class="extra-table">
-                                    {% for key, value in bulletin.extra.items() %}
-                                        <div class="extra-row">
-                                            <dt>{{ key.replace('_', ' ') }}</dt>
-                                            <dd>{{ value | tojson }}</dd>
-                                        </div>
-                                    {% endfor %}
-                                </dl>
+                                <pre class="json-block">{{ bulletin.extra | render_extra }}</pre>
                             </details>
                         {% endif %}
                         <div class="tags">

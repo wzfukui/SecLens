@@ -1,0 +1,22 @@
+{
+  "slug": "cloudflare_blog",
+  "name": "Cloudflare Blog Collector",
+  "version": "1.0.0",
+  "entrypoint": "collector:run",
+  "description": "Collects technical insights from the Cloudflare Blog homepage.",
+  "schedule": "5400",
+  "source": {
+    "publisher": "Cloudflare",
+    "homepage": "https://blog.cloudflare.com/",
+    "feed_url": "https://blog.cloudflare.com/"
+  },
+  "runtime": {},
+  "ui": {
+    "group_slug": "tech_blog",
+    "group_title": "技术博客",
+    "group_description": "安全厂商与技术团队分享的技术洞见与最佳实践。",
+    "group_order": 60,
+    "source_title": "Cloudflare Blog",
+    "source_order": 10
+  }
+}

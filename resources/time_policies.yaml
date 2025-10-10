@@ -43,6 +43,9 @@ sources:
     naive_strategy: assume_default
   the_hacker_news:
     naive_strategy: assume_default
+  cloudflare_blog:
+    default_timezone: UTC
+    naive_strategy: assume_default
   ubuntu_security:
     naive_strategy: assume_default
   tc260_consultations:

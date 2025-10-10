@@ -12,6 +12,10 @@ from app.schemas import BulletinCreate
 from resources.aliyun_security.collector import FetchParams as AliyunFetchParams, run as run_aliyun
 from resources.exploit_db.collector import run as run_exploit_db
 from resources.freebuf_community.collector import run as run_freebuf
+from resources.cloudflare_blog.collector import (
+    FetchParams as CloudflareFetchParams,
+    run as run_cloudflare,
+)
 from resources.huawei_security.collector import FetchParams as HuaweiFetchParams, run as run_huawei
 from resources.linuxsecurity_hybrid.collector import (
     FetchParams as LinuxSecurityFetchParams,
@@ -57,6 +61,7 @@ def parse_args() -> argparse.Namespace:
             "sihou_news",
             "doonsec_wechat",
             "freebuf_community",
+            "cloudflare_blog",
             "tencent_cloud_security",
             "exploit_db",
             "ccgp_local_procurement",
@@ -169,6 +174,13 @@ def run_plugin(args: argparse.Namespace) -> tuple[list[BulletinCreate], dict | N
     if args.source == "freebuf_community":
         bulletins, response = run_freebuf(args.ingest_url, args.token, force=args.force)
         return bulletins, response
+    if args.source == "cloudflare_blog":
+        defaults = CloudflareFetchParams()
+        params = CloudflareFetchParams(
+            list_url=args.feed_url or defaults.list_url,
+            limit=args.limit or defaults.limit,
+        )
+        return run_cloudflare(args.ingest_url, args.token, params=params)
     if args.source == "tencent_cloud_security":
         return run_tencent_cloud(args.ingest_url, args.token, limit=args.limit, force=args.force)
     if args.source == "exploit_db":

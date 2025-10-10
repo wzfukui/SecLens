@@ -21,6 +21,7 @@
 | tencent_cloud_security | `2025-10-09 14:17:21` | HTML async JSON | ❌（插件内手工设定） | 已手动转 UTC+08 | `Asia/Shanghai`（现有实现已覆盖） |
 | the_hacker_news | `Thu, 09 Oct 2025 22:49:00 +0530` | RSS `<pubDate>` | ✅ | 无 | 不需要 |
 | ubuntu_security_notice | `Fri, 10 Oct 2025 03:01:00 +0000` | RSS `<pubDate>` | ✅ | 无 | 不需要 |
+| cloudflare_blog | `2025-10-09T14:00+00:00` | HTML `<meta property="article:published_time">` | ✅ | 无 | 不需要 |
 
 > 采样时间：2025-10-10；若上游格式调整，请在复测后更新表格。
 

@@ -1,7 +1,7 @@
 {
   "slug": "tc260_consultations",
   "name": "TC260 标准征求意见监测",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "entrypoint": "collector:run",
   "description": "抓取国家信息安全标准化技术委员会（TC260）发布的标准征求意见稿，并获取正文摘要。",
   "schedule": "14400",

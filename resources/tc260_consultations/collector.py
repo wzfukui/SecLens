@@ -49,36 +49,31 @@ class TC260ConsultationCollector:
         start = 0
         limit = params.limit
 
-        while True:
-            page_url = f"{params.list_url}?start={start}&length={PAGE_SIZE}"
-            response = self.session.get(page_url, timeout=30)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.text, "html.parser")
-            items = soup.select("li.list-group-item.list_title_news")
-            if not items:
-                break
+        page_url = f"{params.list_url}?start={start}&length={PAGE_SIZE}"
+        response = self.session.get(page_url, timeout=30)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        items = soup.select("li.list-group-item.list_title_news")
+        for li in items:
+            anchor = li.find("a")
+            if anchor is None or not anchor.get("href"):
+                continue
+            title = anchor.get_text(strip=True)
+            detail_url = urljoin(DETAIL_BASE_URL, anchor["href"])
+            deadline_node = li.find(class_="list_time")
+            deadline = _clean_text(deadline_node.get_text(strip=True) if deadline_node else None)
 
-            for li in items:
-                anchor = li.find("a")
-                if anchor is None or not anchor.get("href"):
-                    continue
-                title = anchor.get_text(strip=True)
-                detail_url = urljoin(DETAIL_BASE_URL, anchor["href"])
-                deadline = _clean_text(li.find(class_="list_time").get_text(strip=True) if li.find(class_="list_time") else None)
-
-                collected.append(
-                    {
-                        "title": title,
-                        "detail_url": detail_url,
-                        "deadline": deadline,
-                    }
-                )
-                if limit and len(collected) >= limit:
-                    break
+            collected.append(
+                {
+                    "title": title,
+                    "detail_url": detail_url,
+                    "deadline": deadline,
+                }
+            )
             if limit and len(collected) >= limit:
                 break
-            start += PAGE_SIZE
-
+        if limit:
+            collected = collected[:limit]
         return collected
 
     def _fetch_detail(self, url: str) -> BeautifulSoup | None:

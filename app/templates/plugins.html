@@ -8,6 +8,15 @@
 .plugins-table td.numeric {
     text-align: right;
 }
+.chart-wrapper {
+    position: relative;
+    height: 320px;
+    margin: 2rem 0 1.5rem;
+}
+.section-note {
+    color: #64748b;
+    margin: 0.25rem 0 1rem;
+}
 </style>
 {% endblock %}
 {% block content %}
@@ -24,6 +33,12 @@
             <div class="stat-label">{{ widget.label }}</div>
         </div>
         {% endfor %}
+    </div>
+
+    <h3>全量采集趋势</h3>
+    <p class="section-note">近 {{ trend_window_days }} 天平台采集条数</p>
+    <div class="chart-wrapper">
+        <canvas id="overall-trend-chart" aria-label="近{{ trend_window_days }}天采集趋势" role="img"></canvas>
     </div>
 
     <div class="table-wrapper">
@@ -72,6 +87,58 @@
 </section>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    const trendCanvas = document.getElementById('overall-trend-chart');
+    const trendSeries = {{ overall_trend_series | tojson }};
+    if (trendCanvas && Array.isArray(trendSeries) && trendSeries.length > 0 && window.Chart) {
+        const labels = trendSeries.map(point => point.date.slice(5));
+        const dataPoints = trendSeries.map(point => point.count);
+        new window.Chart(trendCanvas, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: '每日采集条数',
+                    data: dataPoints,
+                    tension: 0.2,
+                    fill: true,
+                    borderColor: '#16a34a',
+                    backgroundColor: 'rgba(22, 163, 74, 0.15)',
+                    pointRadius: 3,
+                    pointBackgroundColor: '#15803d',
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                        },
+                    },
+                },
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title(items) {
+                                const item = items[0];
+                                if (!item) return '';
+                                return trendSeries[item.dataIndex]?.date ?? '';
+                            },
+                            label(item) {
+                                return `采集 ${item.formattedValue} 条`;
+                            },
+                        },
+                    },
+                },
+            },
+        });
+    }
+
     const buttons = document.querySelectorAll('.activate-btn');
     buttons.forEach((btn) => {
         btn.addEventListener('click', async () => {
@@ -105,4 +172,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 </script>
+{% endblock %}
+{% block extra_js %}
+{{ super() }}
+<script src="/static/vendor/chart.umd.js"></script>
 {% endblock %}

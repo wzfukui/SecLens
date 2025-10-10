@@ -336,6 +336,35 @@ def create_app() -> FastAPI:
             {"label": "采集总量", "value": total_collected},
         ]
 
+        trend_days = 30
+        display_tz = get_display_timezone()
+        now_local = datetime.now(display_tz)
+        start_local = (
+            now_local - timedelta(days=trend_days - 1)
+        ).replace(hour=0, minute=0, second=0, microsecond=0)
+        start_utc = start_local.astimezone(timezone.utc)
+        raw_fetched = (
+            db.query(Bulletin.fetched_at)
+            .filter(Bulletin.fetched_at.isnot(None))
+            .filter(Bulletin.fetched_at >= start_utc)
+            .all()
+        )
+        fetched_datetimes = [value[0] for value in raw_fetched if value and value[0]]
+
+        overall_trend_counts: OrderedDict[str, int] = OrderedDict()
+        for offset in range(trend_days):
+            day = (start_local + timedelta(days=offset)).date()
+            overall_trend_counts[day.isoformat()] = 0
+
+        for fetched_at in fetched_datetimes:
+            local_dt = to_display_tz(fetched_at)
+            day_key = local_dt.date().isoformat()
+            overall_trend_counts[day_key] = overall_trend_counts.get(day_key, 0) + 1
+
+        overall_trend_series = [
+            {"date": date, "count": count} for date, count in overall_trend_counts.items()
+        ]
+
         return templates.TemplateResponse(
             request=request,
             name="plugins.html",
@@ -345,6 +374,8 @@ def create_app() -> FastAPI:
                 "header_href": None,
                 "summary": summary,
                 "plugins": plugins_payload,
+                "overall_trend_series": overall_trend_series,
+                "trend_window_days": trend_days,
                 "page_id": "plugins-dashboard",
                 "display_tz_label": display_tz_label,
                 "is_admin": bool(current_user and current_user.is_admin),

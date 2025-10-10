@@ -12,6 +12,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    String,
     Text,
     UniqueConstraint,
 )
@@ -34,6 +35,140 @@ def _normalize_values(values: Iterable[str] | None) -> list[str]:
         if value not in unique:
             unique.append(value)
     return unique
+
+
+class User(Base):
+    """End-user account with authentication and VIP metadata."""
+
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    display_name = Column(String(200), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    is_admin = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now, nullable=False)
+    vip_activated_at = Column(DateTime(timezone=True), nullable=True)
+    vip_expires_at = Column(DateTime(timezone=True), nullable=True)
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
+
+    notification_settings = relationship(
+        "UserNotificationSetting",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    push_rules = relationship("UserPushRule", back_populates="user", cascade="all, delete-orphan")
+    subscriptions = relationship("UserSubscription", back_populates="user", cascade="all, delete-orphan")
+    activation_logs = relationship("ActivationCode", back_populates="used_by_user")
+
+
+class ActivationCode(Base):
+    """VIP activation code purchased via third-party channels."""
+
+    __tablename__ = "activation_codes"
+
+    id = Column(Integer, primary_key=True)
+    code = Column(String(64), unique=True, nullable=False, index=True)
+    batch = Column(String(50), nullable=True)
+    notes = Column(String(255), nullable=True)
+    is_used = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now, nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    used_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    used_by_user = relationship("User", back_populates="activation_logs")
+
+
+class UserNotificationSetting(Base):
+    """Preferred notification channels for a user."""
+
+    __tablename__ = "user_notification_settings"
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    webhook_url = Column(String(1024), nullable=True)
+    notify_email = Column(String(255), nullable=True)
+    send_webhook = Column(Boolean, default=False, nullable=False)
+    send_email = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now, nullable=False)
+
+    user = relationship("User", back_populates="notification_settings")
+
+
+class UserPushRule(Base):
+    """Keyword-based trigger that initiates notifications."""
+
+    __tablename__ = "user_push_rules"
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", name="uq_user_push_rule_name"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    keyword = Column(String(120), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    notify_via_webhook = Column(Boolean, default=True, nullable=False)
+    notify_via_email = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now, nullable=False)
+
+    user = relationship("User", back_populates="push_rules")
+
+
+class UserSubscription(Base):
+    """Customized RSS subscription configuration."""
+
+    __tablename__ = "user_subscriptions"
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", name="uq_user_subscription_name"),
+        UniqueConstraint("token", name="uq_user_subscription_token"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    token = Column(String(64), nullable=False, index=True)
+    keyword_filter = Column(String(200), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now, nullable=False)
+
+    user = relationship("User", back_populates="subscriptions")
+    channel_links = relationship(
+        "UserSubscriptionChannel",
+        back_populates="subscription",
+        cascade="all, delete-orphan",
+        lazy="joined",
+    )
+
+    @property
+    def channel_slugs(self) -> list[str]:
+        return [link.plugin_slug for link in self.channel_links]
+
+
+class UserSubscriptionChannel(Base):
+    """Link table between subscriptions and plugin channels."""
+
+    __tablename__ = "user_subscription_channels"
+
+    subscription_id = Column(
+        Integer,
+        ForeignKey("user_subscriptions.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    plugin_slug = Column(String(100), primary_key=True)
+    created_at = Column(DateTime(timezone=True), default=_now, nullable=False)
+
+    subscription = relationship("UserSubscription", back_populates="channel_links")
 
 
 class Bulletin(Base):

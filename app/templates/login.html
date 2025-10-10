@@ -1,7 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="static-page">
-    <h2>登录</h2>
-    <p>登录功能正在规划中。若需访问管理接口，请联系管理员获取临时凭证或使用 API Token 方式调用接口。</p>
+<section class="auth-page">
+    <h2>登录账户</h2>
+    <form id="login-form" class="auth-form">
+        <label>
+            邮箱
+            <input type="email" name="email" required autocomplete="email">
+        </label>
+        <label>
+            密码
+            <input type="password" name="password" required autocomplete="current-password">
+        </label>
+        <button type="submit">登录</button>
+    </form>
+    <p class="auth-switch">
+        还没有账户？
+        <a href="/register">立即注册</a>
+    </p>
+    <div id="login-message" class="form-message" role="alert" aria-live="polite"></div>
 </section>
 {% endblock %}

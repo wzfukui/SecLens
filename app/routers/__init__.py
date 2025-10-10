@@ -1,4 +1,4 @@
 """API router exports."""
-from app.routers import bulletins, ingest, plugins
+from app.routers import admin, auth, bulletins, feeds, ingest, plugins, users
 
-__all__ = ["bulletins", "ingest", "plugins"]
+__all__ = ["admin", "auth", "bulletins", "feeds", "ingest", "plugins", "users"]

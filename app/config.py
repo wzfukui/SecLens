@@ -14,6 +14,15 @@ class Settings(BaseSettings):
     log_dir: str = "logs"
     log_max_bytes: int = 5 * 1024 * 1024  # 5 MB
     log_backup_count: int = 5
+    jwt_secret_key: str = "change-me-in-production"
+    jwt_algorithm: str = "HS256"
+    access_token_expires_minutes: int = 30
+    refresh_token_expires_minutes: int = 60 * 24 * 7  # 7 days
+    resend_api_key: str | None = None
+    resend_from_email: str | None = None
+    resend_api_base_url: str = "https://api.resend.com"
+    admin_email: str | None = None
+    admin_password: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

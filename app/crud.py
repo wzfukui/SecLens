@@ -1,6 +1,6 @@
 """Database helper functions for ingest API."""
-from datetime import datetime, timezone
-from typing import Optional, Tuple
+from datetime import datetime, timedelta, timezone
+from typing import Iterable, Optional, Sequence, Tuple
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session, selectinload
@@ -130,3 +130,342 @@ def get_bulletin(session: Session, bulletin_id: int) -> Optional[models.Bulletin
 
     stmt = _base_bulletin_query().where(models.Bulletin.id == bulletin_id)
     return session.scalars(stmt).first()
+
+
+# --- User and VIP helpers ---
+
+
+def get_user_by_id(session: Session, user_id: int) -> Optional[models.User]:
+    """Return user by primary key."""
+
+    return session.get(models.User, user_id)
+
+
+def get_user_by_email(session: Session, email: str) -> Optional[models.User]:
+    """Return user by email (case-insensitive)."""
+
+    normalized = email.strip().lower()
+    stmt = select(models.User).where(models.User.email == normalized)
+    return session.scalars(stmt).first()
+
+
+def create_user(
+    session: Session,
+    *,
+    email: str,
+    password_hash: str,
+    display_name: Optional[str] = None,
+    is_admin: bool = False,
+) -> models.User:
+    """Persist a new user."""
+
+    now = datetime.now(timezone.utc)
+    user = models.User(
+        email=email.strip().lower(),
+        password_hash=password_hash,
+        display_name=display_name,
+        is_admin=is_admin,
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(user)
+    return user
+
+
+def touch_user_login(session: Session, user: models.User) -> None:
+    """Update last login timestamp and updated_at."""
+
+    now = datetime.now(timezone.utc)
+    user.last_login_at = now
+    user.updated_at = now
+    session.add(user)
+
+
+def _vip_extension(now: datetime, existing_expiry: Optional[datetime]) -> datetime:
+    current_expiry = _normalize_to_utc(existing_expiry)
+    term = timedelta(days=365)
+    base = current_expiry if current_expiry and current_expiry > now else now
+    return base + term
+
+
+def _normalize_to_utc(value: Optional[datetime]) -> Optional[datetime]:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def activate_vip(session: Session, user: models.User) -> None:
+    """Grant or extend VIP for one year from activation."""
+
+    now = datetime.now(timezone.utc)
+    user.vip_activated_at = user.vip_activated_at or now
+    user.vip_expires_at = _vip_extension(now, user.vip_expires_at)
+    user.updated_at = now
+    session.add(user)
+
+
+def get_activation_code(session: Session, code: str) -> Optional[models.ActivationCode]:
+    """Return activation code instance."""
+
+    normalized = code.strip()
+    stmt = select(models.ActivationCode).where(models.ActivationCode.code == normalized)
+    return session.scalars(stmt).first()
+
+
+def mark_activation_code_used(
+    session: Session,
+    activation_code: models.ActivationCode,
+    user: models.User,
+) -> None:
+    """Mark activation code as consumed by user."""
+
+    now = datetime.now(timezone.utc)
+    activation_code.is_used = True
+    activation_code.used_at = now
+    activation_code.used_by_user = user
+    session.add(activation_code)
+
+
+def ensure_notification_settings(session: Session, user: models.User) -> models.UserNotificationSetting:
+    """Return or create notification settings for user."""
+
+    if user.notification_settings:
+        return user.notification_settings
+    settings = models.UserNotificationSetting(user_id=user.id)
+    session.add(settings)
+    session.flush()
+    return settings
+
+
+def update_notification_settings(
+    session: Session,
+    settings: models.UserNotificationSetting,
+    *,
+    webhook_url: Optional[str],
+    notify_email: Optional[str],
+    send_webhook: bool,
+    send_email: bool,
+) -> models.UserNotificationSetting:
+    """Persist notification settings updates."""
+
+    settings.webhook_url = webhook_url
+    settings.notify_email = notify_email
+    settings.send_webhook = send_webhook
+    settings.send_email = send_email
+    settings.updated_at = datetime.now(timezone.utc)
+    session.add(settings)
+    return settings
+
+
+def list_push_rules(session: Session, user: models.User) -> Sequence[models.UserPushRule]:
+    """Return push rules for user."""
+
+    stmt = (
+        select(models.UserPushRule)
+        .where(models.UserPushRule.user_id == user.id)
+        .order_by(models.UserPushRule.created_at.asc())
+    )
+    return session.scalars(stmt).all()
+
+
+def create_push_rule(
+    session: Session,
+    user: models.User,
+    *,
+    name: str,
+    keyword: str,
+    is_active: bool,
+    notify_via_webhook: bool,
+    notify_via_email: bool,
+) -> models.UserPushRule:
+    """Create push rule."""
+
+    now = datetime.now(timezone.utc)
+    rule = models.UserPushRule(
+        user_id=user.id,
+        name=name,
+        keyword=keyword,
+        is_active=is_active,
+        notify_via_webhook=notify_via_webhook,
+        notify_via_email=notify_via_email,
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(rule)
+    return rule
+
+
+def get_push_rule(session: Session, user: models.User, rule_id: int) -> Optional[models.UserPushRule]:
+    """Fetch single push rule by id ensuring ownership."""
+
+    stmt = select(models.UserPushRule).where(
+        models.UserPushRule.id == rule_id,
+        models.UserPushRule.user_id == user.id,
+    )
+    return session.scalars(stmt).first()
+
+
+def update_push_rule(
+    session: Session,
+    rule: models.UserPushRule,
+    *,
+    name: Optional[str] = None,
+    keyword: Optional[str] = None,
+    is_active: Optional[bool] = None,
+    notify_via_webhook: Optional[bool] = None,
+    notify_via_email: Optional[bool] = None,
+) -> models.UserPushRule:
+    """Apply updates to push rule."""
+
+    if name is not None:
+        rule.name = name
+    if keyword is not None:
+        rule.keyword = keyword
+    if is_active is not None:
+        rule.is_active = is_active
+    if notify_via_webhook is not None:
+        rule.notify_via_webhook = notify_via_webhook
+    if notify_via_email is not None:
+        rule.notify_via_email = notify_via_email
+    rule.updated_at = datetime.now(timezone.utc)
+    session.add(rule)
+    return rule
+
+
+def delete_push_rule(session: Session, rule: models.UserPushRule) -> None:
+    """Delete rule."""
+
+    session.delete(rule)
+
+
+def list_subscriptions(
+    session: Session,
+    user: models.User,
+) -> Sequence[models.UserSubscription]:
+    """Return subscriptions for user."""
+
+    stmt = (
+        select(models.UserSubscription)
+        .options(selectinload(models.UserSubscription.channel_links))
+        .where(models.UserSubscription.user_id == user.id)
+        .order_by(models.UserSubscription.created_at.asc())
+    )
+    return session.scalars(stmt).all()
+
+
+def get_subscription(
+    session: Session,
+    user: models.User,
+    subscription_id: int,
+) -> Optional[models.UserSubscription]:
+    """Return single subscription ensuring ownership."""
+
+    stmt = (
+        select(models.UserSubscription)
+        .options(selectinload(models.UserSubscription.channel_links))
+        .where(
+            models.UserSubscription.id == subscription_id,
+            models.UserSubscription.user_id == user.id,
+        )
+    )
+    return session.scalars(stmt).first()
+
+
+def create_subscription(
+    session: Session,
+    user: models.User,
+    *,
+    name: str,
+    token: str,
+    keyword_filter: Optional[str],
+    is_active: bool,
+    channel_slugs: Iterable[str],
+) -> models.UserSubscription:
+    """Create subscription entry and channel links."""
+
+    now = datetime.now(timezone.utc)
+    subscription = models.UserSubscription(
+        user_id=user.id,
+        name=name,
+        token=token,
+        keyword_filter=keyword_filter,
+        is_active=is_active,
+        created_at=now,
+        updated_at=now,
+    )
+    subscription.channel_links = [
+        models.UserSubscriptionChannel(subscription=subscription, plugin_slug=slug)
+        for slug in _normalize_channel_slugs(channel_slugs)
+    ]
+    session.add(subscription)
+    return subscription
+
+
+def update_subscription(
+    session: Session,
+    subscription: models.UserSubscription,
+    *,
+    name: Optional[str] = None,
+    keyword_filter: Optional[str] = None,
+    is_active: Optional[bool] = None,
+    channel_slugs: Optional[Iterable[str]] = None,
+) -> models.UserSubscription:
+    """Update subscription record."""
+
+    if name is not None:
+        subscription.name = name
+    if keyword_filter is not None:
+        subscription.keyword_filter = keyword_filter
+    if is_active is not None:
+        subscription.is_active = is_active
+    if channel_slugs is not None:
+        subscription.channel_links = [
+            models.UserSubscriptionChannel(subscription=subscription, plugin_slug=slug)
+            for slug in _normalize_channel_slugs(channel_slugs)
+        ]
+    subscription.updated_at = datetime.now(timezone.utc)
+    session.add(subscription)
+    return subscription
+
+
+def delete_subscription(session: Session, subscription: models.UserSubscription) -> None:
+    """Delete subscription entry."""
+
+    session.delete(subscription)
+
+
+def _normalize_channel_slugs(channel_slugs: Iterable[str]) -> list[str]:
+    seen: list[str] = []
+    for slug in channel_slugs:
+        normalized = slug.strip()
+        if not normalized or normalized in seen:
+            continue
+        seen.append(normalized)
+    return seen
+
+
+def get_subscription_by_token(session: Session, token: str) -> Optional[models.UserSubscription]:
+    """Fetch subscription via token."""
+
+    stmt = (
+        select(models.UserSubscription)
+        .options(
+            selectinload(models.UserSubscription.channel_links),
+            selectinload(models.UserSubscription.user),
+        )
+        .where(models.UserSubscription.token == token)
+    )
+    return session.scalars(stmt).first()
+
+
+def get_bulletins_by_ids(session: Session, bulletin_ids: Sequence[int]) -> list[models.Bulletin]:
+    """Fetch bulletins by ids preserving requested order."""
+
+    if not bulletin_ids:
+        return []
+    stmt = select(models.Bulletin).where(models.Bulletin.id.in_(bulletin_ids))
+    rows = session.scalars(stmt).all()
+    order_map = {bulletin_id: index for index, bulletin_id in enumerate(bulletin_ids)}
+    return sorted(rows, key=lambda bulletin: order_map.get(bulletin.id, len(order_map)))

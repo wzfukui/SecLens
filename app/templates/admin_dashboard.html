@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="dashboard admin-dashboard">
+    <aside class="dashboard-sidebar">
+        <div class="user-card">
+            <div class="user-avatar" aria-hidden="true">👤</div>
+            <div class="user-meta">
+                <strong>{{ user.display_name or user.email }}</strong>
+                <span>{{ user.email }}</span>
+            </div>
+        </div>
+        <nav class="dashboard-menu" aria-label="管理员功能菜单">
+            <button class="menu-item is-active" type="button" data-target="admin-activation">激活码管理</button>
+        </nav>
+    </aside>
+
+    <div class="dashboard-content">
+        <section id="admin-activation" class="dashboard-panel is-active" data-section="activation">
+            <div class="panel-header">
+                <h3>激活码管理</h3>
+            </div>
+
+            <div class="admin-card">
+                <h4>生成激活码</h4>
+                <form method="post" action="/admin/codes" class="admin-form">
+                    <div class="field-row">
+                        <div class="field-input">
+                            <label for="code-quantity">数量</label>
+                            <input id="code-quantity" type="number" name="quantity" value="1" min="1" max="100">
+                        </div>
+                        <div class="field-input">
+                            <label for="code-expire">有效期（天，可选）</label>
+                            <input id="code-expire" type="number" name="expires_in_days" min="1" max="365" placeholder="留空表示长期有效">
+                        </div>
+                    </div>
+                    <div class="field-row">
+                        <div class="field-input">
+                            <label for="code-notes">备注</label>
+                            <input id="code-notes" type="text" name="notes" maxlength="255" placeholder="可选说明">
+                        </div>
+                    </div>
+                    <button type="submit">生成激活码</button>
+                </form>
+            </div>
+
+            <div class="admin-card">
+                <h4>最新激活码记录</h4>
+                <div class="table-wrapper">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>激活码</th>
+                                <th>状态</th>
+                                <th>批次</th>
+                                <th>备注</th>
+                                <th>过期时间</th>
+                                <th>使用人</th>
+                                <th>使用时间</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for code in codes %}
+                            <tr class="{{ 'used' if code.is_used else 'available' }}">
+                                <td><code>{{ code.code }}</code></td>
+                                <td>{{ '已使用' if code.is_used else '未使用' }}</td>
+                                <td>{{ code.batch or '—' }}</td>
+                                <td>{{ code.notes or '—' }}</td>
+                                <td>
+                                    {% if code.expires_at %}
+                                        {{ code.expires_at|display_time }}
+                                    {% else %}
+                                        永不过期
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if code.used_by_user %}
+                                        {{ code.used_by_user.display_name or code.used_by_user.email }}
+                                    {% else %}—{% endif %}
+                                </td>
+                                <td>{% if code.used_at %}{{ code.used_at|display_time }}{% else %}—{% endif %}</td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="7">暂无激活码记录。</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+</section>
+{% endblock %}

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from pydantic import AliasChoices, BaseModel, Field, HttpUrl
+from pydantic import AliasChoices, BaseModel, EmailStr, Field, HttpUrl
 
 
 class SourceInfo(BaseModel):
@@ -101,6 +101,127 @@ class HomeSectionOut(BaseModel):
     description: Optional[str] = None
     sources: list[SourceSectionOut]
 
+
+class UserBase(BaseModel):
+    email: EmailStr
+    display_name: Optional[str] = Field(default=None, max_length=200)
+
+
+class UserCreate(UserBase):
+    password: str = Field(min_length=8, max_length=128)
+
+
+class UserLoginRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=1)
+
+
+class TokenPair(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class TokenRefreshRequest(BaseModel):
+    refresh_token: str
+
+
+class UserOut(BaseModel):
+    id: int
+    email: EmailStr
+    display_name: Optional[str]
+    vip_activated_at: Optional[datetime]
+    vip_expires_at: Optional[datetime]
+    created_at: datetime
+    updated_at: datetime
+    is_admin: bool
+
+    class Config:
+        from_attributes = True
+
+
+class VIPStatus(BaseModel):
+    is_vip: bool
+    vip_activated_at: Optional[datetime]
+    vip_expires_at: Optional[datetime]
+    remaining_days: Optional[int]
+
+
+class ActivationRequest(BaseModel):
+    code: str = Field(min_length=6, max_length=64)
+
+
+class NotificationSettingUpdate(BaseModel):
+    webhook_url: Optional[HttpUrl] = None
+    notify_email: Optional[EmailStr] = None
+    send_webhook: bool = False
+    send_email: bool = False
+
+
+class NotificationSettingOut(NotificationSettingUpdate):
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PushRuleBase(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    keyword: str = Field(min_length=1, max_length=120)
+    is_active: bool = True
+    notify_via_webhook: bool = True
+    notify_via_email: bool = False
+
+
+class PushRuleCreate(PushRuleBase):
+    pass
+
+
+class PushRuleUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    keyword: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    is_active: Optional[bool] = None
+    notify_via_webhook: Optional[bool] = None
+    notify_via_email: Optional[bool] = None
+
+
+class PushRuleOut(PushRuleBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SubscriptionBase(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    channel_slugs: list[str] = Field(default_factory=list)
+    keyword_filter: Optional[str] = Field(default=None, max_length=200)
+    is_active: bool = True
+
+
+class SubscriptionCreate(SubscriptionBase):
+    pass
+
+
+class SubscriptionUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    channel_slugs: Optional[list[str]] = None
+    keyword_filter: Optional[str] = Field(default=None, max_length=200)
+    is_active: Optional[bool] = None
+
+
+class SubscriptionOut(SubscriptionBase):
+    id: int
+    token: str
+    created_at: datetime
+    updated_at: datetime
+    rss_url: Optional[HttpUrl] = None
+
+    class Config:
+        from_attributes = True
+
 class PluginVersionInfo(BaseModel):
     id: int
     plugin_id: int
@@ -180,6 +301,21 @@ __all__ = [
     "BulletinListResponse",
     "SourceSectionOut",
     "HomeSectionOut",
+    "UserCreate",
+    "UserLoginRequest",
+    "TokenPair",
+    "TokenRefreshRequest",
+    "UserOut",
+    "VIPStatus",
+    "ActivationRequest",
+    "NotificationSettingUpdate",
+    "NotificationSettingOut",
+    "PushRuleCreate",
+    "PushRuleUpdate",
+    "PushRuleOut",
+    "SubscriptionCreate",
+    "SubscriptionUpdate",
+    "SubscriptionOut",
     "PluginVersionInfo",
     "PluginInfo",
     "PluginListResponse",

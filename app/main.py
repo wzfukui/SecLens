@@ -18,12 +18,14 @@ from sqlalchemy.orm import Session, selectinload
 from app import crud
 from app.services import build_home_sections, HomeSection, SourceSection
 from scripts.scheduler_service import start_scheduler
-from app.database import Base, get_db_session, get_engine
+from app.database import Base, get_db_session, get_engine, get_session_factory
 from app.schemas import BulletinOut
 from app.logging_utils import setup_logging
 from app.utils.datetime import format_display, get_display_timezone, to_display_tz
+from app.config import get_settings
+from app.utils.security import hash_password
 
-from app.routers import bulletins, ingest, plugins
+from app.routers import admin, auth, bulletins, feeds, ingest, plugins, users
 from app.models import Plugin, Bulletin
 
 
@@ -56,6 +58,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="SecLens Ingest API", version="0.1.0")
     templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
     templates.env.globals["static_asset_url"] = static_asset_url
+    app.state.templates = templates
 
     def display_time_filter(value: Optional[datetime], pattern: Optional[str] = None) -> str:
         formatted = format_display(value, pattern=pattern)
@@ -73,14 +76,33 @@ def create_app() -> FastAPI:
         _load_asset_manifest()
         engine = get_engine()
         Base.metadata.create_all(bind=engine)
+        settings = get_settings()
+        if settings.admin_email and settings.admin_password:
+            session_factory = get_session_factory()
+            with session_factory() as session:
+                existing = crud.get_user_by_email(session, settings.admin_email)
+                if existing is None:
+                    password_hash = hash_password(settings.admin_password)
+                    crud.create_user(
+                        session,
+                        email=settings.admin_email,
+                        password_hash=password_hash,
+                        display_name="管理员",
+                        is_admin=True,
+                    )
+                    session.commit()
 
     @app.get("/health", tags=["health"])
     def healthcheck() -> dict[str, str]:
         return {"status": "ok"}
 
+    app.include_router(auth.router)
+    app.include_router(admin.router)
     app.include_router(ingest.router)
     app.include_router(bulletins.router)
+    app.include_router(feeds.router)
     app.include_router(plugins.router)
+    app.include_router(users.router)
 
     @app.get("/", response_class=HTMLResponse, tags=["web"])
     def homepage(request: Request, db: Session = Depends(get_db_session)) -> HTMLResponse:
@@ -161,6 +183,22 @@ def create_app() -> FastAPI:
             request=request,
             name="login.html",
             context={"title": "登录", "page_id": "login"},
+        )
+
+    @app.get("/register", response_class=HTMLResponse, tags=["pages"])
+    def register_page(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request=request,
+            name="register.html",
+            context={"title": "注册", "page_id": "register"},
+        )
+
+    @app.get("/dashboard", response_class=HTMLResponse, tags=["pages"])
+    def dashboard_page(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request=request,
+            name="dashboard.html",
+            context={"title": "个人控制台", "page_id": "dashboard"},
         )
 
     @app.get("/dashboard/plugins", response_class=HTMLResponse, tags=["pages"])

@@ -92,7 +92,11 @@
             <a href="/docs">文档</a>
             <a href="/help">帮助</a>
             <a href="/about">关于</a>
-            <a href="/login">登录</a>
+            <a href="/login" data-auth="guest">登录</a>
+            <a href="/register" data-auth="guest">注册</a>
+            <a href="/dashboard" data-auth="auth">个人主页</a>
+            <a href="/admin" data-admin="true" style="display:none">管理中心</a>
+            <a href="#" id="logout-link" data-auth="auth">退出</a>
             <a href="/dashboard/plugins">插件监控</a>
         </nav>
     </div>

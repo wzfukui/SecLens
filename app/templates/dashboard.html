@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="dashboard">
+    <aside class="dashboard-sidebar">
+        <div class="user-card" id="user-card">
+            <div class="user-avatar" aria-hidden="true">👤</div>
+            <div class="user-meta">
+                <strong id="user-name">加载中…</strong>
+                <span id="user-email"></span>
+            </div>
+        </div>
+        <nav class="dashboard-menu" aria-label="功能菜单">
+            <button class="menu-item is-active" type="button" data-target="section-vip">VIP 身份</button>
+            <button class="menu-item" type="button" data-target="section-notification">通知设置</button>
+            <button class="menu-item" type="button" data-target="section-rules">推送规则</button>
+            <button class="menu-item" type="button" data-target="section-subscriptions">自定义订阅</button>
+        </nav>
+        <div class="sidebar-actions">
+            <a id="sidebar-dashboard-link" href="/dashboard">刷新数据</a>
+        </div>
+    </aside>
+
+    <div class="dashboard-content">
+        <section id="section-vip" class="dashboard-panel is-active" aria-labelledby="vip-heading" data-section="vip">
+            <div class="panel-header">
+                <h3 id="vip-heading">VIP 身份</h3>
+                <span id="vip-status" class="status-tag">读取中…</span>
+            </div>
+            <p id="vip-detail" class="panel-description"></p>
+            <div id="activation-panel" class="activation-panel">
+                <form id="activation-form" class="inline-form">
+                    <label>
+                        激活码
+                        <input type="text" name="code" minlength="6" maxlength="64" required autocomplete="one-time-code">
+                    </label>
+                    <button type="submit">激活 VIP</button>
+                </form>
+                <div id="activation-message" class="form-message" role="alert" aria-live="polite"></div>
+            </div>
+        </section>
+
+        <section id="section-notification" class="dashboard-panel" aria-labelledby="notification-heading" data-section="notifications">
+            <div class="panel-header">
+                <h3 id="notification-heading">通知设置</h3>
+            </div>
+            <form id="notification-form" class="card-form">
+                <div class="field-row">
+                    <div class="field-input">
+                        <label for="notification-webhook">Webhook 地址</label>
+                        <input id="notification-webhook" type="url" name="webhook_url" placeholder="https://example.com/webhook">
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="send_webhook">
+                        <span>启用</span>
+                    </label>
+                </div>
+                <div class="field-row">
+                    <div class="field-input">
+                        <label for="notification-email">通知邮箱</label>
+                        <input id="notification-email" type="email" name="notify_email" placeholder="your@email.com">
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="send_email">
+                        <span>启用</span>
+                    </label>
+                </div>
+                <button type="submit">保存通知设置</button>
+                <div id="notification-message" class="form-message" role="alert" aria-live="polite"></div>
+            </form>
+        </section>
+
+        <section id="section-rules" class="dashboard-panel" aria-labelledby="rules-heading" data-section="rules">
+            <div class="panel-header">
+                <h3 id="rules-heading">推送规则</h3>
+            </div>
+            <ul id="push-rules-list" class="item-list" aria-live="polite"></ul>
+            <form id="push-rule-form" class="card-form">
+                <h4>新增推送规则</h4>
+                <div class="field-row">
+                    <div class="field-input">
+                        <label for="rule-name">规则名称</label>
+                        <input id="rule-name" type="text" name="name" required maxlength="100">
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="is_active" checked>
+                        <span>启用</span>
+                    </label>
+                </div>
+                <label>
+                    关键词
+                    <input type="text" name="keyword" required maxlength="120">
+                </label>
+                <fieldset class="checkbox-group">
+                    <legend>触发通知渠道</legend>
+                    <div class="field-row">
+                        <label class="toggle-switch">
+                            <input type="checkbox" name="notify_via_webhook" checked>
+                            <span>Webhook</span>
+                        </label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" name="notify_via_email">
+                            <span>邮件</span>
+                        </label>
+                    </div>
+                </fieldset>
+                <button type="submit">创建规则</button>
+                <div id="push-rule-message" class="form-message" role="alert" aria-live="polite"></div>
+            </form>
+        </section>
+
+        <section id="section-subscriptions" class="dashboard-panel" aria-labelledby="subscriptions-heading" data-section="subscriptions">
+            <div class="panel-header">
+                <h3 id="subscriptions-heading">自定义订阅</h3>
+            </div>
+            <ul id="subscription-list" class="item-list" aria-live="polite"></ul>
+            <form id="subscription-form" class="card-form">
+                <h4>新增订阅</h4>
+                <div class="field-row">
+                    <div class="field-input">
+                        <label for="subscription-name">订阅名称</label>
+                        <input id="subscription-name" type="text" name="name" required maxlength="200">
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="is_active" checked>
+                        <span>启用</span>
+                    </label>
+                </div>
+                <label>
+                    关键词过滤（可选）
+                    <input type="text" name="keyword_filter" maxlength="200" placeholder="命中关键词才推送">
+                </label>
+                <label>
+                    选择渠道
+                    <select id="subscription-channels" name="channel_slugs" multiple size="6"></select>
+                </label>
+                <button type="submit">创建订阅</button>
+                <div id="subscription-message" class="form-message" role="alert" aria-live="polite"></div>
+            </form>
+        </section>
+    </div>
+</section>
+{% endblock %}

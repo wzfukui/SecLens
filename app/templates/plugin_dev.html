@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="static-page">
-    <h2>平台工作流程</h2>
+    <h2>插件开发指南</h2>
     <ol>
         <li><strong>开发插件</strong>：在 <code>resources/&lt;slug&gt;/</code> 目录内实现 <code>collector.py</code> 和 <code>manifest.json</code>（可参考 <code>resources.aliyun_security</code>）。</li>
         <li><strong>本地验证</strong>：运行 <code>pytest tests/collectors/test_*.py</code> 并使用 <code>python scripts/run_plugin.py --source &lt;slug&gt;</code> 做端到端检查。</li>

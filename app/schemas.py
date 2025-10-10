@@ -140,11 +140,24 @@ class UserOut(BaseModel):
         from_attributes = True
 
 
+class ActivationLogOut(BaseModel):
+    code: str
+    batch: Optional[str]
+    notes: Optional[str]
+    created_at: datetime
+    used_at: Optional[datetime]
+    expires_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
 class VIPStatus(BaseModel):
     is_vip: bool
     vip_activated_at: Optional[datetime]
     vip_expires_at: Optional[datetime]
     remaining_days: Optional[int]
+    history: list[ActivationLogOut] = Field(default_factory=list)
 
 
 class ActivationRequest(BaseModel):
@@ -306,6 +319,7 @@ __all__ = [
     "TokenPair",
     "TokenRefreshRequest",
     "UserOut",
+    "ActivationLogOut",
     "VIPStatus",
     "ActivationRequest",
     "NotificationSettingUpdate",

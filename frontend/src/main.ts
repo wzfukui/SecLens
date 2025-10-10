@@ -273,11 +273,21 @@ type UserProfile = {
   is_admin: boolean;
 };
 
+type ActivationLog = {
+  code: string;
+  batch?: string | null;
+  notes?: string | null;
+  created_at: string;
+  used_at?: string | null;
+  expires_at?: string | null;
+};
+
 type VipStatus = {
   is_vip: boolean;
   vip_activated_at?: string | null;
   vip_expires_at?: string | null;
   remaining_days?: number | null;
+  history?: ActivationLog[];
 };
 
 type NotificationSetting = {
@@ -627,6 +637,8 @@ const setupDashboardPage = () => {
   const vipDetailEl = document.getElementById("vip-detail");
   const activationForm = document.getElementById("activation-form") as HTMLFormElement | null;
   const activationMessage = document.getElementById("activation-message");
+  const activationHistory = document.getElementById("activation-history");
+  const activationHistoryList = document.getElementById("activation-history-list") as HTMLUListElement | null;
   const notificationForm = document.getElementById("notification-form") as HTMLFormElement | null;
   const notificationMessage = document.getElementById("notification-message");
   const pushRulesList = document.getElementById("push-rules-list");
@@ -661,6 +673,48 @@ const setupDashboardPage = () => {
     const activationPanel = document.getElementById("activation-panel");
     if (activationPanel) {
       activationPanel.style.display = status.is_vip ? "none" : "grid";
+    }
+    if (activationHistory && activationHistoryList) {
+      activationHistoryList.innerHTML = "";
+      const history = status.history ?? [];
+      if (!history.length) {
+        activationHistory.hidden = true;
+      } else {
+        activationHistory.hidden = false;
+        history.forEach((log) => {
+          const item = document.createElement("li");
+          const codeEl = document.createElement("strong");
+          codeEl.textContent = log.code;
+          item.appendChild(codeEl);
+
+          const details: string[] = [];
+          if (log.used_at) {
+            const used = formatDateTime(log.used_at);
+            details.push(`使用时间：${used || log.used_at}`);
+          } else {
+            details.push("使用时间：未记录");
+            if (log.created_at) {
+              const created = formatDateTime(log.created_at);
+              details.push(`激活记录创建于 ${created || log.created_at}`);
+            }
+          }
+          if (log.expires_at) {
+            const expiry = formatDateTime(log.expires_at);
+            details.push(`有效期至 ${expiry || log.expires_at}`);
+          }
+          if (log.batch) {
+            details.push(`批次：${log.batch}`);
+          }
+          if (log.notes) {
+            details.push(log.notes);
+          }
+          const meta = document.createElement("div");
+          meta.textContent = details.join(" · ");
+          item.appendChild(meta);
+
+          activationHistoryList.appendChild(item);
+        });
+      }
     }
   };
 

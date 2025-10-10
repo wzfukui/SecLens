@@ -90,8 +90,7 @@
         <nav class="global-menu-list" id="global-menu-list" aria-label="全局导航" data-visible="false">
             <div class="menu-group" data-group="public">
                 <a href="/">首页</a>
-                <a href="/help">帮助</a>
-                <a href="/about">关于</a>
+                <a href="/plugin-dev">插件开发</a>
                 <a href="/docs">文档</a>
                 <a href="/dashboard/plugins">插件监控</a>
             </div>
@@ -105,6 +104,12 @@
             <div class="menu-group" data-group="admin" data-admin="true" style="display:none">
                 <a href="/admin">管理后台</a>
             </div>
+            <div class="menu-divider" role="separator" aria-hidden="true"></div>
+            <div class="menu-group" data-group="legal">
+                <a href="/terms">服务协议</a>
+                <a href="/privacy">隐私条款</a>
+                <a href="/about">关于</a>
+            </div>
         </nav>
     </div>
 </header>
@@ -112,7 +117,7 @@
     {% block content %}{% endblock %}
 </main>
 <footer>
-    SecLens MVP · <a href="/v1/bulletins/rss">RSS</a> · <a href="/docs">API Docs</a>
+    SecLens 情报雷达 @ 2025 · <a href="/v1/bulletins/rss">RSS</a>
 </footer>
 <script type="module" src="{{ static_asset_url('bundle.js') }}"></script>
 {% block extra_js %}{% endblock %}

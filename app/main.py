@@ -177,12 +177,12 @@ def create_app() -> FastAPI:
             context={"title": "插件规范与示例", "page_id": "docs"},
         )
 
-    @app.get("/help", response_class=HTMLResponse, tags=["pages"])
-    def help_page(request: Request) -> HTMLResponse:
+    @app.get("/plugin-dev", response_class=HTMLResponse, tags=["pages"])
+    def plugin_dev_page(request: Request) -> HTMLResponse:
         return templates.TemplateResponse(
             request=request,
-            name="help.html",
-            context={"title": "平台工作流程", "page_id": "help"},
+            name="plugin_dev.html",
+            context={"title": "插件开发指南", "page_id": "plugin-dev"},
         )
 
     @app.get("/about", response_class=HTMLResponse, tags=["pages"])
@@ -191,6 +191,22 @@ def create_app() -> FastAPI:
             request=request,
             name="about.html",
             context={"title": "关于 SecLens", "page_id": "about"},
+        )
+
+    @app.get("/terms", response_class=HTMLResponse, tags=["pages"])
+    def terms_page(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request=request,
+            name="terms.html",
+            context={"title": "SecLens 服务协议", "page_id": "terms"},
+        )
+
+    @app.get("/privacy", response_class=HTMLResponse, tags=["pages"])
+    def privacy_page(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request=request,
+            name="privacy.html",
+            context={"title": "SecLens 隐私条款", "page_id": "privacy"},
         )
 
     @app.get("/login", response_class=HTMLResponse, tags=["pages"])

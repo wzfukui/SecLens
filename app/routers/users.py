@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Iterable
+from typing import Iterable, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
@@ -12,6 +12,7 @@ from app import crud, models
 from app.database import get_db_session
 from app.dependencies import get_current_active_user
 from app.schemas import (
+    ActivationLogOut,
     ActivationRequest,
     NotificationSettingOut,
     NotificationSettingUpdate,
@@ -36,11 +37,22 @@ def _vip_status(user: models.User) -> VIPStatus:
     if expires_at:
         delta = expires_at - now
         remaining_days = max(0, int(delta.total_seconds() // 86400))
+    logs = sorted(
+        (
+            log
+            for log in getattr(user, "activation_logs", []) or []
+            if log.is_used and log.used_by_user_id == user.id
+        ),
+        key=lambda log: log.used_at or log.created_at,
+        reverse=True,
+    )
+    history = [ActivationLogOut.model_validate(log) for log in logs]
     return VIPStatus(
         is_vip=bool(expires_at and expires_at > now),
         vip_activated_at=user.vip_activated_at,
         vip_expires_at=expires_at,
         remaining_days=remaining_days,
+        history=history,
     )
 
 

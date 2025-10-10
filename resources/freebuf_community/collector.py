@@ -18,6 +18,7 @@ USER_AGENT = "SecLensFreeBufCollector/1.0"
 DEFAULT_FEED_URL = "https://www.freebuf.com/feed"
 STATE_FILE_NAME = ".cursor"
 DEFAULT_LIMIT = 40
+DEFAULT_TOPIC = "security_news"
 
 
 @dataclass
@@ -136,7 +137,7 @@ class FreeBufCollector:
         )
 
         labels = [f"category:{cat.lower()}" for cat in entry.categories]
-        topics = ["community-update"]
+        topics = [DEFAULT_TOPIC]
 
         extra: dict[str, object] = {}
         if entry.categories:

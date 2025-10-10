@@ -1,7 +1,7 @@
 {
   "slug": "ccgp_central_procurement",
   "name": "中央采购网中央公告监测",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "entrypoint": "collector:run",
   "description": "抓取中央政府采购网中央政务采购公告，并仅保留标题或正文含“网安”“网络安全”“信息安全”“态势感知”“等级保护”“防火墙”等关键词的记录。",
   "schedule": "3600",

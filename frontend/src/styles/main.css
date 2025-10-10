@@ -105,6 +105,16 @@ header .hero p {
   font-weight: 500;
 }
 
+.global-menu-list .menu-group {
+  padding: 0.25rem 0;
+}
+
+.global-menu-list .menu-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 0.35rem 0;
+}
+
 .global-menu-list a:hover,
 .global-menu-list a:focus-visible {
   background: #f1f5f9;

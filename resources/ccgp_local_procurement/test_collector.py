@@ -53,7 +53,7 @@ def test_collect_filters_and_parses(fake_session: FakeSession) -> None:
     assert bulletin.content.title == "某地网络安全监测平台采购项目中标公告"
     assert bulletin.extra is not None
     assert bulletin.extra.get("region") == "北京"
-    assert "policy_compliance" in bulletin.topics
+    assert "security_procurement" in bulletin.topics
 
     assert bulletin.content.published_at is not None
     assert bulletin.content.published_at.tzinfo == timezone.utc

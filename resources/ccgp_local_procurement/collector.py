@@ -14,7 +14,7 @@ from app.time_utils import resolve_published_at
 
 DEFAULT_LOCAL_LIST_URL = "https://www.ccgp.gov.cn/cggg/dfgg/"
 DEFAULT_CENTRAL_LIST_URL = "https://www.ccgp.gov.cn/cggg/zygg/"
-DEFAULT_TOPIC = "policy_compliance"
+DEFAULT_TOPIC = "security_procurement"
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "

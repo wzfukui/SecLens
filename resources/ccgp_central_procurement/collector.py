@@ -9,7 +9,6 @@ from app.schemas import BulletinCreate
 from resources.ccgp_local_procurement.collector import (
     CCGPProcurementCollector,
     DEFAULT_CENTRAL_LIST_URL,
-    DEFAULT_TOPIC,
     FetchParams,
 )
 
@@ -17,7 +16,7 @@ from resources.ccgp_local_procurement.collector import (
 class CCGPCentralCollector(CCGPProcurementCollector):
     slug = "ccgp_central_procurement"
     list_url = DEFAULT_CENTRAL_LIST_URL
-    topics = [DEFAULT_TOPIC]
+    topics = ["security_procurement"]
 
 
 def run(

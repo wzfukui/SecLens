@@ -16,10 +16,10 @@
     "max_future_drift_minutes": 720
   },
   "ui": {
-    "group_slug": "policy_compliance",
-    "group_title": "政策合规",
-    "group_description": "政策通知、采购公告等与安全治理相关的权威信息。",
-    "group_order": 80,
+    "group_slug": "security_procurement",
+    "group_title": "安全采购",
+    "group_description": "网络安全相关的采购与招标公告。",
+    "group_order": 55,
     "source_title": "中央采购网·地方公告",
     "source_order": 10
   }

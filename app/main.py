@@ -21,7 +21,12 @@ from scripts.scheduler_service import start_scheduler
 from app.database import Base, get_db_session, get_engine, get_session_factory
 from app.schemas import BulletinOut
 from app.logging_utils import setup_logging
-from app.utils.datetime import format_display, get_display_timezone, to_display_tz
+from app.utils.datetime import (
+    format_display,
+    get_display_timezone,
+    get_display_timezone_label,
+    to_display_tz,
+)
 from app.config import get_settings
 from app.utils.security import hash_password
 from app.dependencies import get_optional_user
@@ -233,17 +238,7 @@ def create_app() -> FastAPI:
             .all()
         )
 
-        display_tz = get_display_timezone()
-        sample_local = datetime.now(timezone.utc).astimezone(display_tz)
-        offset = sample_local.utcoffset()
-        if offset is None:
-            display_tz_label = "UTC"
-        else:
-            total_minutes = int(offset.total_seconds() // 60)
-            sign = "+" if total_minutes >= 0 else "-"
-            total_minutes = abs(total_minutes)
-            hours, minutes = divmod(total_minutes, 60)
-            display_tz_label = f"UTC{sign}{hours:02d}:{minutes:02d}"
+        display_tz_label = get_display_timezone_label()
 
         def fmt(dt: Optional[datetime]) -> Optional[str]:
             return format_display(dt, pattern="%Y-%m-%d %H:%M")
@@ -334,8 +329,10 @@ def create_app() -> FastAPI:
         if plugin is None:
             raise HTTPException(status_code=404, detail="Plugin not found")
 
+        display_tz_label = get_display_timezone_label()
+
         def fmt(dt: Optional[datetime]) -> Optional[str]:
-            return format_display(dt)
+            return format_display(dt, pattern="%Y-%m-%d %H:%M")
 
         fallback_dt = datetime.min.replace(tzinfo=timezone.utc)
         versions_sorted = sorted(
@@ -471,6 +468,7 @@ def create_app() -> FastAPI:
                 "page_id": "plugin-detail",
                 "is_admin": bool(current_user and current_user.is_admin),
                 "pending_version": pending_version_payload,
+                "display_tz_label": display_tz_label,
             },
         )
 

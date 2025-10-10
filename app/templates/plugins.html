@@ -4,6 +4,10 @@
 .plugins-table td.timestamp-subtle {
     color: #94a3b8;
 }
+.plugins-table th.numeric,
+.plugins-table td.numeric {
+    text-align: right;
+}
 </style>
 {% endblock %}
 {% block content %}
@@ -29,8 +33,8 @@
                     <th>插件</th>
                     <th>版本</th>
                     <th>状态</th>
-                    <th>调度</th>
-                    <th>采集总量</th>
+                    <th class="numeric">调度（/分钟）</th>
+                    <th class="numeric">采集总量</th>
                     <th>上次运行 ({{ display_tz_label }})</th>
                     <th>下次运行 ({{ display_tz_label }})</th>
                     <th>上传时间 ({{ display_tz_label }})</th>
@@ -50,8 +54,8 @@
                     <td>
                         <span class="status-tag {{ 'active' if plugin.is_active else 'inactive' }}">{{ plugin.status_display }}</span>
                     </td>
-                    <td>{{ plugin.schedule or '未配置' }}</td>
-                    <td>{{ plugin.total_items }}</td>
+                    <td class="numeric">{{ plugin.schedule or '未配置' }}</td>
+                    <td class="numeric">{{ plugin.total_items }}</td>
                     <td>{{ plugin.last_run_at or '—' }}</td>
                     <td class="timestamp-subtle">{{ plugin.next_run_at or '—' }}</td>
                     <td class="timestamp-subtle">{{ plugin.created_at }}</td>

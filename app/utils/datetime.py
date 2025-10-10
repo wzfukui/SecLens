@@ -51,6 +51,15 @@ def _format_utc_offset(offset: Optional[timedelta]) -> str:
     return f"{sign}{hours:02d}:{minutes:02d}"
 
 
+def get_display_timezone_label() -> str:
+    """Return a human-readable label for the configured display timezone."""
+
+    display_tz = get_display_timezone()
+    sample_local = datetime.now(timezone.utc).astimezone(display_tz)
+    offset = _format_utc_offset(sample_local.utcoffset())
+    return f"UTC{offset}" if offset else "UTC"
+
+
 def format_display(dt: Optional[datetime], pattern: Optional[str] = None) -> Optional[str]:
     """Format a datetime for end-user display.
 
@@ -70,4 +79,4 @@ def format_display(dt: Optional[datetime], pattern: Optional[str] = None) -> Opt
     return f"{localized.strftime('%Y-%m-%d %H:%M')}{offset_section}"
 
 
-__all__ = ["format_display", "get_display_timezone", "to_display_tz"]
+__all__ = ["format_display", "get_display_timezone", "get_display_timezone_label", "to_display_tz"]

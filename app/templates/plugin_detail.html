@@ -53,7 +53,7 @@
 
     {% if is_admin and pending_version %}
     <div class="version-alert">
-        <p>检测到新的上传版本 <strong>{{ pending_version.version }}</strong>（{{ pending_version.created_at }}，当前状态：{{ pending_version.status }}）。激活后将立即替换当前版本并触发一次运行。</p>
+        <p>检测到新的上传版本 <strong>{{ pending_version.version }}</strong>（{{ pending_version.created_at }}{% if pending_version.created_at != '—' %} ({{ display_tz_label }}){% endif %}，当前状态：{{ pending_version.status }}）。激活后将立即替换当前版本并触发一次运行。</p>
         <button id="activate-latest" data-plugin-id="{{ plugin.id }}" data-version-id="{{ pending_version.id }}">
             激活新版本并立即运行
         </button>
@@ -74,10 +74,10 @@
                     <th>版本</th>
                     <th>状态</th>
                     <th>调度</th>
-                    <th>上传时间</th>
-                    <th>激活时间</th>
-                    <th>上次运行</th>
-                    <th>下一次运行</th>
+                    <th>上传时间 ({{ display_tz_label }})</th>
+                    <th>激活时间 ({{ display_tz_label }})</th>
+                    <th>上次运行 ({{ display_tz_label }})</th>
+                    <th>下一次运行 ({{ display_tz_label }})</th>
                 </tr>
             </thead>
             <tbody>
@@ -105,16 +105,16 @@
             <thead>
                 <tr>
                     <th>标题</th>
-                    <th>发布时间</th>
-                    <th>抓取时间</th>
+                    <th>发布时间 ({{ display_tz_label }})</th>
+                    <th>抓取时间 ({{ display_tz_label }})</th>
                 </tr>
             </thead>
             <tbody>
                 {% for bulletin in recent_bulletins %}
                 <tr>
                     <td><a href="/bulletins/{{ bulletin.id }}">{{ bulletin.title }}</a></td>
-                    <td>{{ bulletin.published_at|display_time or '—' }}</td>
-                    <td>{{ bulletin.fetched_at|display_time or '—' }}</td>
+                    <td>{{ bulletin.published_at|display_time('%Y-%m-%d %H:%M') or '—' }}</td>
+                    <td>{{ bulletin.fetched_at|display_time('%Y-%m-%d %H:%M') or '—' }}</td>
                 </tr>
                 {% endfor %}
                 {% if not recent_bulletins %}
@@ -130,8 +130,8 @@
             <thead>
                 <tr>
                     <th>状态</th>
-                    <th>开始时间</th>
-                    <th>结束时间</th>
+                    <th>开始时间 ({{ display_tz_label }})</th>
+                    <th>结束时间 ({{ display_tz_label }})</th>
                     <th>采集条目</th>
                     <th>新增条目</th>
                     <th>重复条目</th>

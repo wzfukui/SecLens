@@ -21,6 +21,14 @@ from resources.doonsec_wechat.collector import (
     FetchParams as DoonsecFetchParams,
     run as run_doonsec,
 )
+from resources.ccgp_local_procurement.collector import (
+    FetchParams as CCGPLocalFetchParams,
+    run as run_ccgp_local,
+)
+from resources.ccgp_central_procurement.collector import (
+    FetchParams as CCGPCentralFetchParams,
+    run as run_ccgp_central,
+)
 from resources.msrc_update_guide.collector import FetchParams as MsrcFetchParams, run as run_msrc
 from resources.oracle_security_alert.collector import run as run_oracle
 from resources.sihou_news.collector import FetchParams as SihouFetchParams, run as run_sihou
@@ -47,6 +55,8 @@ def parse_args() -> argparse.Namespace:
             "freebuf_community",
             "tencent_cloud_security",
             "exploit_db",
+            "ccgp_local_procurement",
+            "ccgp_central_procurement",
             "ubuntu_security_notice",
             "oracle_security_alert",
         ],
@@ -130,6 +140,20 @@ def run_plugin(args: argparse.Namespace) -> tuple[list[BulletinCreate], dict | N
             limit=args.limit or defaults.limit,
         )
         return run_doonsec(args.ingest_url, args.token, params=params)
+    if args.source == "ccgp_local_procurement":
+        defaults = CCGPLocalFetchParams()
+        params = CCGPLocalFetchParams(
+            limit=args.limit or defaults.limit,
+            list_url=args.feed_url or defaults.list_url,
+        )
+        return run_ccgp_local(args.ingest_url, args.token, params=params)
+    if args.source == "ccgp_central_procurement":
+        defaults = CCGPCentralFetchParams()
+        params = CCGPCentralFetchParams(
+            limit=args.limit or defaults.limit,
+            list_url=args.feed_url or defaults.list_url,
+        )
+        return run_ccgp_central(args.ingest_url, args.token, params=params)
     if args.source == "freebuf_community":
         bulletins, response = run_freebuf(args.ingest_url, args.token, force=args.force)
         return bulletins, response

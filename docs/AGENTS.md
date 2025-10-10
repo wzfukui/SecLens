@@ -16,6 +16,8 @@
 | oracle_security_alert | `Fri, 10 Oct 2025 18:00:00 +0000` | RSS `<pubDate>` | ✅ | 无 | 不需要 |
 | redhat_advisory | `2025-10-09T17:48:05Z` | REST JSON | ✅ | 无 | 不需要 |
 | sihou_news | `Thu, 09 Oct 2025 14:58:05 +0800` | RSS `<pubDate>` | ✅ | 无 | 不需要 |
+| ccgp_local_procurement | `2025-10-10 13:58` | HTML 列表 `<em>` 字段 | ❌ | 需按北京时间解析 | `Asia/Shanghai` |
+| ccgp_central_procurement | `2025-10-09 08:30` | HTML 列表 `<em>` 字段 | ❌ | 需按北京时间解析 | `Asia/Shanghai` |
 | tencent_cloud_security | `2025-10-09 14:17:21` | HTML async JSON | ❌（插件内手工设定） | 已手动转 UTC+08 | `Asia/Shanghai`（现有实现已覆盖） |
 | the_hacker_news | `Thu, 09 Oct 2025 22:49:00 +0530` | RSS `<pubDate>` | ✅ | 无 | 不需要 |
 | ubuntu_security_notice | `Fri, 10 Oct 2025 03:01:00 +0000` | RSS `<pubDate>` | ✅ | 无 | 不需要 |

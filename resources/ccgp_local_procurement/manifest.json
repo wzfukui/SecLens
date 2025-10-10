@@ -1,0 +1,26 @@
+{
+  "slug": "ccgp_local_procurement",
+  "name": "中央采购网地方公告监测",
+  "version": "1.0.0",
+  "entrypoint": "collector:run",
+  "description": "抓取中央政府采购网地方政务采购公告并筛选网络安全相关信息。",
+  "schedule": "3600",
+  "source": {
+    "publisher": "中央政府采购网",
+    "homepage": "https://www.ccgp.gov.cn/cggg/dfgg/"
+  },
+  "runtime": {},
+  "time_policy": {
+    "default_timezone": "Asia/Shanghai",
+    "naive_strategy": "assume_default",
+    "max_future_drift_minutes": 720
+  },
+  "ui": {
+    "group_slug": "policy_compliance",
+    "group_title": "政策合规",
+    "group_description": "政策通知、采购公告等与安全治理相关的权威信息。",
+    "group_order": 80,
+    "source_title": "中央采购网·地方公告",
+    "source_order": 10
+  }
+}

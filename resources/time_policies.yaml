@@ -30,6 +30,14 @@ sources:
     naive_strategy: utc
   sihou_news:
     naive_strategy: assume_default
+  ccgp_local_procurement:
+    default_timezone: Asia/Shanghai
+    naive_strategy: assume_default
+    max_future_drift_minutes: 720
+  ccgp_central_procurement:
+    default_timezone: Asia/Shanghai
+    naive_strategy: assume_default
+    max_future_drift_minutes: 720
   tencent_cloud_security:
     default_timezone: Asia/Shanghai
     naive_strategy: assume_default

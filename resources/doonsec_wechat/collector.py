@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import html
+import re
 from typing import List, Sequence
 import xml.etree.ElementTree as ET
 
@@ -18,6 +20,9 @@ REQUEST_HEADERS = {
     "User-Agent": USER_AGENT,
 }
 
+_HEX_ESCAPE_RE = re.compile(r"\\x([0-9A-Fa-f]{2})")
+_UNICODE_ESCAPE_RE = re.compile(r"\\u([0-9A-Fa-f]{4})")
+
 
 @dataclass
 class FetchParams:
@@ -30,6 +35,36 @@ def _trim(text: str | None) -> str | None:
         return None
     cleaned = text.strip()
     return cleaned or None
+
+
+def _clean_text(value: str | None) -> str | None:
+    """Normalize backslash-escaped characters and HTML entities."""
+
+    if value is None:
+        return None
+
+    cleaned = value
+    if "\\" in cleaned:
+        cleaned = cleaned.replace('\\"', '"').replace("\\'", "'")
+
+        def _hex_repl(match: re.Match[str]) -> str:
+            try:
+                return chr(int(match.group(1), 16))
+            except ValueError:
+                return match.group(0)
+
+        def _unicode_repl(match: re.Match[str]) -> str:
+            try:
+                return chr(int(match.group(1), 16))
+            except ValueError:
+                return match.group(0)
+
+        cleaned = _HEX_ESCAPE_RE.sub(_hex_repl, cleaned)
+        cleaned = _UNICODE_ESCAPE_RE.sub(_unicode_repl, cleaned)
+        cleaned = cleaned.replace("\\n", "\n").replace("\\t", "\t").replace("\\r", "\r")
+        cleaned = cleaned.replace("\\\\", "\\")
+
+    return html.unescape(cleaned)
 
 
 class DoonsecCollector:
@@ -71,17 +106,20 @@ class DoonsecCollector:
             [(item.get("pub_date"), "item.pubDate")],
             fetched_at=fetched_at,
         )
-        origin_url = item.get("link")
-        description = item.get("description")
+        origin_url = _clean_text(item.get("link"))
+        title = _clean_text(item.get("title")) or (origin_url or "")
+        description = _clean_text(item.get("description"))
+        author = _clean_text(item.get("author"))
+        category = _clean_text(item.get("category"))
 
-        external_id = origin_url
+        external_id = origin_url or item.get("link")
         source = SourceInfo(
             source_slug="doonsec_wechat",
             external_id=external_id,
             origin_url=origin_url,
         )
         content = ContentInfo(
-            title=item.get("title") or (origin_url or ""),
+            title=title,
             summary=description,
             body_text=description,
             published_at=published_at,
@@ -89,10 +127,8 @@ class DoonsecCollector:
         )
 
         labels: list[str] = []
-        category = item.get("category")
         if category:
             labels.append(f"category:{category.lower()}")
-        author = item.get("author")
         if author:
             labels.append(f"author:{author.lower()}")
         topics = ["security-news"]

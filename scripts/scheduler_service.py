@@ -47,7 +47,7 @@ def _extract_summary(
     elif isinstance(result, list):
         bulletins = list(result)
 
-    if requests and bulletins and should_proxy_post:
+    if requests and bulletins and should_proxy_post and response_data is None:
         payload = [item.model_dump(mode="json") for item in bulletins]
         api_response = requests.post(ingest_url, json=payload, timeout=30)
         api_response.raise_for_status()

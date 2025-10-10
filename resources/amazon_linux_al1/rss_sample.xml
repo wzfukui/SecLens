@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Amazon Linux AMI Security Bulletins</title>
+    <description>Amazon Linux AMI Security Bulletins</description>
+    <link>https://alas.aws.amazon.com</link>
+    <language>en-us</language>
+    <ttl>35</ttl>
+    <item>
+      <title>ALAS-2025-1981 (medium): perl</title>
+      <description>
+        CVE-2025-40909
+      </description>
+      <pubDate>Mon, 09 Jun 2025 22:19:00 GMT</pubDate>
+      <lastBuildDate>Mon, 09 Jun 2025 22:19:00 GMT</lastBuildDate>
+      <guid>https://alas.aws.amazon.com/ALAS-2025-1981.html</guid>
+      <link>https://alas.aws.amazon.com/ALAS-2025-1981.html</link>
+    </item>
+    <item>
+      <title>ALAS-2025-1983 (important): kernel</title>
+      <description>
+        CVE-2024-53173, CVE-2024-58083, CVE-2025-21722
+      </description>
+      <pubDate>Mon, 09 Jun 2025 22:19:00 GMT</pubDate>
+      <lastBuildDate>Mon, 09 Jun 2025 22:19:00 GMT</lastBuildDate>
+      <guid>https://alas.aws.amazon.com/ALAS-2025-1983.html</guid>
+      <link>https://alas.aws.amazon.com/ALAS-2025-1983.html</link>
+    </item>
+  </channel>
+</rss>

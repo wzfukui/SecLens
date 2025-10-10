@@ -17,6 +17,25 @@
     Description: Apple security update advisories and Rapid Security Responses
     Home: https://support.apple.com/en-us/100100
     Remark: Includes product availability and release dates for Apple platforms
+  - AWS Security Bulletins
+    Description: AWS official security bulletins and advisories
+    Home: https://aws.amazon.com/security/security-bulletins/
+    Remark: RSS feed https://aws.amazon.com/security/security-bulletins/rss/feed/
+  - Amazon Linux 2023 ALAS
+    Description: Amazon Linux 2023 security advisories (ALAS)
+    Home: https://alas.aws.amazon.com/alas2023.html
+    Remark: RSS feed https://alas.aws.amazon.com/AL2023/alas.rss
+  - Amazon Linux 2 ALAS
+    Description: Amazon Linux 2 security advisories (ALAS)
+    Home: https://alas.aws.amazon.com/alas2.html
+    Remark: RSS feed https://alas.aws.amazon.com/AL2/alas.rss
+  - Amazon Linux 1 ALAS
+    Description: Amazon Linux 1 (EOL) security advisories (ALAS)
+    Home: https://alas.aws.amazon.com/alas1.html
+    Remark: RSS feed https://alas.aws.amazon.com/alas.rss
+  - Amazon Linux Security Announcements
+    Description: Announcements related to Amazon Linux lifecycle and updates
+    Home: https://alas.aws.amazon.com/announcements.html
   - Chrome Releases Stable Updates
     Description: Chrome stable channel release announcements for desktop and ChromeOS
     Home: https://chromereleases.googleblog.com/search/label/Stable%20updates

@@ -52,6 +52,21 @@ sources:
   apple_security_updates:
     default_timezone: UTC
     naive_strategy: assume_default
+  aws_security_bulletins:
+    naive_strategy: assume_default
+    default_timezone: UTC
+  amazon_linux_al2023:
+    naive_strategy: assume_default
+    default_timezone: UTC
+  amazon_linux_al2:
+    naive_strategy: assume_default
+    default_timezone: UTC
+  amazon_linux_al1:
+    naive_strategy: assume_default
+    default_timezone: UTC
+  amazon_linux_announcements:
+    naive_strategy: assume_default
+    default_timezone: UTC
   ubuntu_security:
     naive_strategy: assume_default
   tc260_consultations:

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Amazon Linux 2023 Security Bulletins</title>
+    <description>Amazon Linux 2023 Security Bulletins</description>
+    <link>https://alas.aws.amazon.com</link>
+    <language>en-us</language>
+    <ttl>35</ttl>
+    <item>
+      <title>ALAS2023-2025-1191 (medium): binutils</title>
+      <description>
+        CVE-2025-7546
+      </description>
+      <pubDate>Mon, 29 Sep 2025 19:20:00 GMT</pubDate>
+      <lastBuildDate>Mon, 29 Sep 2025 19:20:00 GMT</lastBuildDate>
+      <guid>https://alas.aws.amazon.com/AL2023/ALAS2023-2025-1191.html</guid>
+      <link>https://alas.aws.amazon.com/AL2023/ALAS2023-2025-1191.html</link>
+    </item>
+    <item>
+      <title>ALAS2023-2025-1196 (important): expat</title>
+      <description>
+        CVE-2025-59375
+      </description>
+      <pubDate>Mon, 29 Sep 2025 19:20:00 GMT</pubDate>
+      <lastBuildDate>Mon, 29 Sep 2025 19:20:00 GMT</lastBuildDate>
+      <guid>https://alas.aws.amazon.com/AL2023/ALAS2023-2025-1196.html</guid>
+      <link>https://alas.aws.amazon.com/AL2023/ALAS2023-2025-1196.html</link>
+    </item>
+  </channel>
+</rss>

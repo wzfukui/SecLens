@@ -1,0 +1,22 @@
+{
+  "slug": "amazon_linux_al2",
+  "name": "Amazon Linux 2 Security Bulletins",
+  "version": "1.0.0",
+  "entrypoint": "collector:run",
+  "description": "Collects Amazon Linux 2 ALAS bulletins from the official RSS feed.",
+  "schedule": "3600",
+  "source": {
+    "publisher": "Amazon Web Services",
+    "homepage": "https://alas.aws.amazon.com/alas2.html",
+    "feed_url": "https://alas.aws.amazon.com/AL2/alas.rss"
+  },
+  "runtime": {},
+  "ui": {
+    "group_slug": "vendor_updates",
+    "group_title": "厂商发布",
+    "group_description": "厂商对产品安全、配置或策略的更新说明。",
+    "group_order": 10,
+    "source_title": "Amazon Linux 2 安全公告",
+    "source_order": 80
+  }
+}

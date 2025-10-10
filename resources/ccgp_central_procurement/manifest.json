@@ -1,7 +1,7 @@
 {
   "slug": "ccgp_central_procurement",
   "name": "中央采购网中央公告监测",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "entrypoint": "collector:run",
   "description": "抓取中央政府采购网中央政务采购公告并筛选网络安全相关信息。",
   "schedule": "3600",

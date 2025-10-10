@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
 from app import database
 from app.models import Plugin, PluginVersion, Bulletin
 from app.models import PluginRun
+from app.dependencies import get_optional_user
+from fastapi import Request
 
 from tests.app.test_ingest import create_test_client
 
@@ -121,3 +123,47 @@ def test_plugin_detail_page_shows_versions_and_runs():
     detail_response = client.get(f"/bulletins/{bulletin_id}")
     assert detail_response.status_code == 200
     assert f"/dashboard/plugins/{plugin_slug}" in detail_response.text
+
+
+def test_plugin_detail_page_shows_activate_button_for_admin():
+    client = create_test_client()
+    SessionFactory = database._SessionLocal  # type: ignore[attr-defined]
+    assert SessionFactory is not None
+
+    plugin_slug = "upgrade_plugin"
+
+    with SessionFactory() as session:
+        _add_plugin(session, slug=plugin_slug, status="active", is_active=True)
+        plugin = session.query(Plugin).filter(Plugin.slug == plugin_slug).first()
+        assert plugin is not None
+        now = datetime.now(timezone.utc)
+        future = now + timedelta(minutes=1)
+        new_version = PluginVersion(
+            plugin_id=plugin.id,
+            version="1.1.0",
+            entrypoint="collector:run",
+            schedule="1800",
+            status="uploaded",
+            is_active=False,
+            upload_path="/tmp/new",
+            manifest={"version": "1.1.0"},
+            created_at=future,
+            updated_at=future,
+        )
+        plugin.versions.append(new_version)
+        session.commit()
+    class _DummyAdmin:
+        is_admin = True
+        is_active = True
+
+    dummy_admin = _DummyAdmin()
+
+    def override_optional_user(request: Request, token: str | None = None):  # type: ignore[override]
+        return dummy_admin
+
+    client.app.dependency_overrides[get_optional_user] = override_optional_user
+    response = client.get(f"/dashboard/plugins/{plugin_slug}")
+    client.app.dependency_overrides.pop(get_optional_user, None)
+
+    assert response.status_code == 200
+    assert "激活新版本并立即运行" in response.text

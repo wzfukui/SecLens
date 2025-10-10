@@ -1,4 +1,39 @@
 {% extends "base.html" %}
+{% block extra_css %}
+{{ super() }}
+<style>
+.version-alert {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    border-radius: 0.75rem;
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    margin-bottom: 1.5rem;
+}
+.version-alert p {
+    margin: 0;
+}
+.version-alert button {
+    align-self: flex-start;
+    padding: 0.5rem 1.25rem;
+    border-radius: 9999px;
+    border: none;
+    background: #1d4ed8;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+.version-alert button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+.version-alert button:hover:not(:disabled) {
+    background: #1e40af;
+}
+</style>
+{% endblock %}
 {% block content %}
 <section class="static-page">
     <h2>{{ plugin.display_name or plugin.name }}</h2>
@@ -11,9 +46,18 @@
     <p>{{ plugin.description }}</p>
     {% endif %}
 
-    {% if manifest %}
+    {% if manifest_json %}
     <h3>Manifest</h3>
-    <pre class="code-block">{{ manifest | tojson(indent=2) }}</pre>
+    <pre class="code-block">{{ manifest_json | safe }}</pre>
+    {% endif %}
+
+    {% if is_admin and pending_version %}
+    <div class="version-alert">
+        <p>检测到新的上传版本 <strong>{{ pending_version.version }}</strong>（{{ pending_version.created_at }}，当前状态：{{ pending_version.status }}）。激活后将立即替换当前版本并触发一次运行。</p>
+        <button id="activate-latest" data-plugin-id="{{ plugin.id }}" data-version-id="{{ pending_version.id }}">
+            激活新版本并立即运行
+        </button>
+    </div>
     {% endif %}
 
     <h3>采集趋势</h3>
@@ -122,57 +166,88 @@
 document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('plugin-trend-chart');
     const series = {{ trend_series | tojson }};
-    if (!canvas || !Array.isArray(series) || series.length === 0 || !window.Chart) {
-        return;
+    if (canvas && Array.isArray(series) && series.length > 0 && window.Chart) {
+        const labels = series.map(point => point.date.slice(5));
+        const dataPoints = series.map(point => point.count);
+        new window.Chart(canvas, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: '每日采集条数',
+                    data: dataPoints,
+                    tension: 0.2,
+                    fill: true,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, 0.15)',
+                    pointRadius: 3,
+                    pointBackgroundColor: '#1d4ed8',
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                        },
+                    },
+                },
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title(items) {
+                                const item = items[0];
+                                if (!item) return '';
+                                return series[item.dataIndex]?.date ?? '';
+                            },
+                            label(item) {
+                                return `采集 ${item.formattedValue} 条`;
+                            },
+                        },
+                    },
+                },
+            },
+        });
     }
 
-    const labels = series.map(point => point.date.slice(5));
-    const dataPoints = series.map(point => point.count);
-    new window.Chart(canvas, {
-        type: 'line',
-        data: {
-            labels,
-            datasets: [{
-                label: '每日采集条数',
-                data: dataPoints,
-                tension: 0.2,
-                fill: true,
-                borderColor: '#2563eb',
-                backgroundColor: 'rgba(37, 99, 235, 0.15)',
-                pointRadius: 3,
-                pointBackgroundColor: '#1d4ed8',
-            }],
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        precision: 0,
-                    },
-                },
-            },
-            plugins: {
-                legend: {
-                    display: false,
-                },
-                tooltip: {
-                    callbacks: {
-                        title(items) {
-                            const item = items[0];
-                            if (!item) return '';
-                            return series[item.dataIndex]?.date ?? '';
-                        },
-                        label(item) {
-                            return `采集 ${item.formattedValue} 条`;
-                        },
-                    },
-                },
-            },
-        },
-    });
+    const activateBtn = document.getElementById('activate-latest');
+    if (activateBtn) {
+        activateBtn.addEventListener('click', async () => {
+            const pluginId = activateBtn.dataset.pluginId;
+            const versionId = activateBtn.dataset.versionId;
+            if (!pluginId || !versionId) return;
+            const originalText = activateBtn.textContent;
+            activateBtn.disabled = true;
+            activateBtn.textContent = '激活中…';
+            try {
+                const activateResp = await fetch(`/v1/plugins/${pluginId}/activate`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({activate: true, version_id: Number(versionId)}),
+                });
+                if (!activateResp.ok) {
+                    const message = await activateResp.text();
+                    throw new Error(message || activateResp.statusText);
+                }
+                const runResp = await fetch(`/v1/plugins/${pluginId}/run`, {method: 'POST'});
+                if (!runResp.ok) {
+                    const message = await runResp.text();
+                    throw new Error(message || runResp.statusText);
+                }
+                window.location.reload();
+            } catch (error) {
+                alert(`激活失败：${error}`);
+                activateBtn.disabled = false;
+                activateBtn.textContent = originalText;
+            }
+        });
+    }
 });
 </script>
 {% endblock %}

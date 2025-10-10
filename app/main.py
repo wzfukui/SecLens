@@ -308,6 +308,7 @@ def create_app() -> FastAPI:
     def plugin_detail_page(
         slug: str,
         request: Request,
+        current_user: models.User | None = Depends(get_optional_user),
         db: Session = Depends(get_db_session),
     ) -> HTMLResponse:
         plugin = (
@@ -326,13 +327,22 @@ def create_app() -> FastAPI:
         def fmt(dt: Optional[datetime]) -> Optional[str]:
             return format_display(dt)
 
-        current_version = plugin.current_version or (plugin.versions[0] if plugin.versions else None)
+        fallback_dt = datetime.min.replace(tzinfo=timezone.utc)
+        versions_sorted = sorted(
+            plugin.versions,
+            key=lambda version: version.created_at or fallback_dt,
+            reverse=True,
+        )
+
+        current_version = plugin.current_version or (versions_sorted[0] if versions_sorted else None)
         manifest = current_version.manifest if current_version and current_version.manifest else None
+        manifest_json = json.dumps(manifest, ensure_ascii=False, indent=2) if manifest else None
 
         versions_payload: list[dict[str, object]] = []
-        for version in plugin.versions:
+        for version in versions_sorted:
             versions_payload.append(
                 {
+                    "id": version.id,
                     "version": version.version,
                     "status": version.status,
                     "is_active": version.is_active,
@@ -343,6 +353,26 @@ def create_app() -> FastAPI:
                     "next_run_at": fmt(version.next_run_at) or "—",
                 }
             )
+
+        pending_candidate = next(
+            (
+                version
+                for version in versions_sorted
+                if not version.is_active and version.status in {"uploaded", "inactive"}
+            ),
+            None,
+        )
+        pending_version_payload = (
+            {
+                "id": pending_candidate.id,
+                "version": pending_candidate.version,
+                "status": pending_candidate.status,
+                "created_at": fmt(pending_candidate.created_at) or "—",
+                "schedule": pending_candidate.schedule or "未配置",
+            }
+            if pending_candidate
+            else None
+        )
 
         runs_payload: list[dict[str, object]] = []
         for run in sorted(plugin.runs, key=lambda r: r.started_at, reverse=True)[:10]:
@@ -417,6 +447,7 @@ def create_app() -> FastAPI:
                 "plugin": plugin,
                 "current_version": current_version,
                 "manifest": manifest,
+                "manifest_json": manifest_json,
                 "versions": versions_payload,
                 "runs": runs_payload,
                 "total_items": total_items,
@@ -424,6 +455,8 @@ def create_app() -> FastAPI:
                 "trend_window_days": trend_days,
                 "recent_bulletins": recent_bulletins,
                 "page_id": "plugin-detail",
+                "is_admin": bool(current_user and current_user.is_admin),
+                "pending_version": pending_version_payload,
             },
         )
 

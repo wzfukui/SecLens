@@ -1,0 +1,22 @@
+{
+  "slug": "redhat_advisory",
+  "name": "Red Hat Security Advisory Collector",
+  "version": "1.0.0",
+  "entrypoint": "collector:run",
+  "description": "Collects Red Hat security advisories and parses detailed content.",
+  "schedule": "3600",
+  "source": {
+    "publisher": "Red Hat",
+    "homepage": "https://access.redhat.com/security/security-updates/security-advisories",
+    "api_url": "https://access.redhat.com/hydra/rest/search/kcs"
+  },
+  "runtime": {},
+  "ui": {
+    "group_slug": "vulnerability_alerts",
+    "group_title": "漏洞预警",
+    "group_description": "官方与权威渠道发布的安全漏洞与补丁通知。",
+    "group_order": 10,
+    "source_title": "Red Hat 安全通告",
+    "source_order": 20
+  }
+}

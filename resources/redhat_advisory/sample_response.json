@@ -1,0 +1,27 @@
+{
+  "response": {
+    "docs": [
+      {
+        "portal_update_date": ["2025-10-09T17:48:05Z"],
+        "portal_CVE": [
+          "CVE-2025-53905",
+          "CVE-2025-53906"
+        ],
+        "portal_severity": "Moderate",
+        "allTitle": "(RHSA-2025:17715) Moderate: vim security update",
+        "portal_publication_date": "2025-10-09T17:48:05Z",
+        "portal_product_names": [
+          "Red Hat Enterprise Linux for x86_64",
+          "Red Hat Enterprise Linux for ARM 64",
+          "Red Hat Enterprise Linux for Power, little endian",
+          "Red Hat Enterprise Linux for IBM z Systems"
+        ],
+        "id": "RHSA-2025:17715",
+        "view_uri": "https://access.redhat.com/errata/RHSA-2025:17715",
+        "portal_synopsis": "Moderate: vim security update"
+      }
+    ],
+    "numFound": 19929,
+    "start": 0
+  }
+}

@@ -70,10 +70,24 @@
 - Verify normalization (model validation) and ingest payload structure; tests must run with `pytest resources/<slug>`.
 
 ## Upload & Lifecycle
-1. Zip the plugin directory: `cd resources/ubuntu_security_notice && zip -r ../ubuntu_security_notice.zip .`.
-2. Base64-encode archive and call `/v1/plugins/upload` with `PluginUploadRequest`.
-3. Activate via `/v1/plugins/{slug}/activate` and monitor run logs in the admin UI or scheduler output.
-4. Increment `version` when changing behaviour; include changelog notes in PRs.
+1. **Packaging**: Use the provided script to package plugins:
+   - Package all resources: `./.venv/bin/python scripts/package_plugins.py`
+   - Package a single plugin: `./.venv/bin/python scripts/package_plugins.py --resources-dir resources/<plugin-name>`
+   - The packaged ZIP file will be created in `dist/plugins/` with format `<slug>-<version>.zip`
+2. **Uploading**: Use the upload script to upload plugins to the SecLens instance:
+   - Upload plugin: `./.venv/bin/python scripts/upload_plugin.py dist/plugins/<plugin-name>-<version>.zip`
+   - For testing without verification: `./.venv/bin/python scripts/upload_plugin.py dist/plugins/<plugin-name>-<version>.zip --skip-verify`
+3. **Activation**: After successful upload, the plugin appears in the system but requires activation:
+   - Check available plugins: `GET /v1/plugins` or view in admin UI
+   - Activate via API: `POST /v1/plugins/{slug}/activate` (requires auth token)
+   - Or activate through admin UI plugin management page
+   - Monitor run logs in the admin UI or scheduler output
+4. **Plugin Updates**: When updating existing plugins:
+   - Increment the `version` field in `manifest.json` (e.g., from 1.0.0 to 1.0.1)
+   - Re-package and re-upload the new version
+   - Multiple versions can coexist; only one can be active at a time
+   - Manually activate the new version through the admin UI after upload
+5. **Verification**: Always test the plugin functionality after activation to ensure proper operation.
 
 ## Security & Compliance
 - Never embed credentials; consume them from `runtime` or environment.

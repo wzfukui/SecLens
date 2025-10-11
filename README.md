@@ -31,6 +31,25 @@ uvicorn app.main:app --reload
 
 应用启动时会自动调用 `Base.metadata.create_all` 初始化数据库表，如使用新的迁移脚本请参考 `scripts/init_db.py`。插件打包、脚本执行等更多用法见 `docs/CONTRIBUTING.md`。
 
+## 插件开发快速参考
+
+### 创建新插件
+1. 在 `resources/` 目录下创建插件目录
+2. 创建 `manifest.json` 和 `collector.py` 文件
+3. 编写单元测试文件 `test_<slug>.py`
+4. 运行测试: `python -m pytest resources/<plugin-name>/`
+
+### 打包与上传
+1. 打包插件: `python scripts/package_plugins.py --resources-dir resources/<plugin-name>`
+2. 上传插件: `python scripts/upload_plugin.py dist/plugins/<plugin-slug>-<version>.zip`
+3. 在管理界面激活插件: `/v1/plugins/<slug>/activate` (需要认证)
+
+### 插件更新
+1. 修改插件代码
+2. 更新 `manifest.json` 中的 `version` 号
+3. 重新打包、上传
+4. 在管理界面激活新版本
+
 ## 时间处理策略
 
 - 平台统一以 UTC 存储与传递发布时间，渲染时再根据用户偏好（默认 UTC+08:00）做本地化，避免不同来源之间排序错乱。

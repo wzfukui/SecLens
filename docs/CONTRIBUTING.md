@@ -76,6 +76,7 @@
 
 6. **打包上传 & 激活**
    - 通过 `python scripts/package_plugins.py --output-dir dist/plugins` 一次性生成 `slug-version.zip`；加 `--upload-url` 可直接上传到 `/v1/plugins/upload`。
+   - 使用专用上传脚本：`python scripts/upload_plugin.py dist/plugins/<plugin-slug>-<version>.zip`
    - 手动上传示例：
      ```bash
      curl -X POST http://127.0.0.1:8000/v1/plugins/upload \
@@ -85,10 +86,18 @@
    - 激活特定插件：
      ```bash
      curl -X POST http://127.0.0.1:8000/v1/plugins/<id>/activate -d '{"activate": true}'
+     # 或者使用插件 slug（需要认证）：
+     curl -X POST http://127.0.0.1:8000/v1/plugins/<slug>/activate \
+       -H "Authorization: Bearer <token>"
      ```
    - 手动执行一次采集：
      ```bash
      curl -X POST http://127.0.0.1:8000/v1/plugins/<id>/run
      ```
    - 启动本地调度：`python scripts/run_scheduler.py --ingest-url http://127.0.0.1:8000/v1/ingest/bulletins`
+   - **插件更新流程**：更新插件功能后，需要：
+     - 增加 `manifest.json` 中的 `version` 号（如从 1.0.0 到 1.0.1）
+     - 重新执行打包和上传流程
+     - 管理员需在后台激活新版本，旧版本将自动停用
+   - **验证步骤**：上传后检查插件状态，激活后验证采集功能是否正常工作
    - 在提交说明里记录数据映射、验证步骤、速率限制等注意事项。若插件需要额外依赖或环境变量，请在 manifest `runtime` 与文档中注明，便于后续维护。

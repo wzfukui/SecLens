@@ -109,6 +109,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str = Field(min_length=8, max_length=128)
+    invitation_code: Optional[str] = Field(default=None, min_length=5, max_length=16)
 
 
 class UserLoginRequest(BaseModel):
@@ -158,6 +159,20 @@ class VIPStatus(BaseModel):
     vip_expires_at: Optional[datetime]
     remaining_days: Optional[int]
     history: list[ActivationLogOut] = Field(default_factory=list)
+
+
+class InvitationInviteeOut(BaseModel):
+    display_label: str
+    invited_at: datetime
+
+
+class InvitationSummaryOut(BaseModel):
+    invite_code: str
+    invite_url: str
+    total: int
+    limit: int
+    offset: int
+    invitees: list[InvitationInviteeOut]
 
 
 class ActivationRequest(BaseModel):

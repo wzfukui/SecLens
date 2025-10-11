@@ -136,25 +136,6 @@
                     </article>
                 {% endfor %}
             </div>
-            {% if sections_preview %}
-                <aside class="landing-snapshot__sources">
-                    <h4>覆盖的情报渠道</h4>
-                    <ul>
-                        {% for section in sections_preview %}
-                            {% set primary = section.sources[0] if section.sources else None %}
-                            <li>
-                                <strong>{{ section.title }}</strong>
-                                {% if section.description %}
-                                    <span>{{ section.description }}</span>
-                                {% endif %}
-                                {% if primary %}
-                                    <span>已收录 {{ primary.total }} 条</span>
-                                {% endif %}
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </aside>
-            {% endif %}
         {% else %}
             <p class="landing-empty">暂无情报展示，欢迎稍后访问或直接进入情报中心查看。</p>
         {% endif %}

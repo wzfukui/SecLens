@@ -11,6 +11,7 @@
         </div>
         <nav class="dashboard-menu" aria-label="功能菜单">
             <button class="menu-item is-active" type="button" data-target="section-vip">VIP 身份</button>
+            <button class="menu-item" type="button" data-target="section-invitations">我的邀请</button>
             <button class="menu-item" type="button" data-target="section-notification">通知设置</button>
             <button class="menu-item" type="button" data-target="section-rules">推送规则</button>
             <button class="menu-item" type="button" data-target="section-subscriptions">自定义订阅</button>
@@ -110,6 +111,39 @@
                 <button type="submit">创建规则</button>
                 <div id="push-rule-message" class="form-message" role="alert" aria-live="polite"></div>
             </form>
+        </section>
+
+        <section id="section-invitations" class="dashboard-panel" aria-labelledby="invitations-heading" data-section="invitations">
+            <div class="panel-header">
+                <h3 id="invitations-heading">我的邀请</h3>
+            </div>
+            <div class="invitation-panel">
+                <div class="invitation-summary">
+                    <div class="invitation-field">
+                        <label for="invitation-url">邀请链接</label>
+                        <div class="field-row">
+                            <input id="invitation-url" type="text" readonly value="加载中…">
+                            <button id="invitation-copy" type="button">复制链接</button>
+                        </div>
+                    </div>
+                    <div class="invitation-field">
+                        <span>邀请码</span>
+                        <code id="invitation-code">加载中…</code>
+                    </div>
+                    <div class="invitation-field">
+                        <span>已成功邀请</span>
+                        <strong><span id="invitation-total">0</span> 人</strong>
+                    </div>
+                </div>
+                <div id="invitation-message" class="form-message" role="alert" aria-live="polite"></div>
+            </div>
+            <div class="invitation-list">
+                <h4>受邀用户</h4>
+                <ul id="invitation-users" class="item-list" data-limit="20" aria-live="polite"></ul>
+                <div class="list-actions">
+                    <button id="invitation-load-more" type="button">加载更多</button>
+                </div>
+            </div>
         </section>
 
         <section id="section-subscriptions" class="dashboard-panel" aria-labelledby="subscriptions-heading" data-section="subscriptions">

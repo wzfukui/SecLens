@@ -1,5 +1,7 @@
 """Database helper functions for ingest API."""
 from datetime import datetime, timedelta, timezone
+import secrets
+import string
 from typing import Iterable, Optional, Sequence, Tuple
 
 from sqlalchemy import Select, func, select
@@ -149,6 +151,42 @@ def get_user_by_email(session: Session, email: str) -> Optional[models.User]:
     return session.scalars(stmt).first()
 
 
+INVITE_CODE_ALPHABET = string.ascii_letters + string.digits
+INVITE_CODE_LENGTH = 5
+
+
+def _generate_invite_code(session: Session) -> str:
+    """Return a unique invitation code for a user."""
+
+    for _ in range(64):
+        code = "".join(secrets.choice(INVITE_CODE_ALPHABET) for _ in range(INVITE_CODE_LENGTH))
+        exists_stmt = select(models.User.id).where(models.User.invite_code == code)
+        if session.execute(exists_stmt).first() is None:
+            return code
+    raise RuntimeError("无法生成唯一的邀请码，请重试")
+
+
+def ensure_invite_code(session: Session, user: models.User) -> str:
+    """Make sure a user record carries an invitation code."""
+
+    if user.invite_code:
+        return user.invite_code
+    user.invite_code = _generate_invite_code(session)
+    user.updated_at = datetime.now(timezone.utc)
+    session.add(user)
+    return user.invite_code
+
+
+def get_user_by_invite_code(session: Session, invite_code: str) -> Optional[models.User]:
+    """Return inviter by invitation code."""
+
+    normalized = invite_code.strip()
+    if not normalized:
+        return None
+    stmt = select(models.User).where(models.User.invite_code == normalized)
+    return session.scalars(stmt).first()
+
+
 def create_user(
     session: Session,
     *,
@@ -168,7 +206,9 @@ def create_user(
         created_at=now,
         updated_at=now,
     )
+    user.invite_code = _generate_invite_code(session)
     session.add(user)
+    session.flush()
     return user
 
 
@@ -194,6 +234,45 @@ def _normalize_to_utc(value: Optional[datetime]) -> Optional[datetime]:
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)
+
+
+def record_invitation(session: Session, inviter: models.User, invitee: models.User) -> models.UserInvitation:
+    """Persist an invitation link between inviter and invitee if not already stored."""
+
+    if inviter.id == invitee.id:
+        raise ValueError("Inviter and invitee cannot be the same user")
+    existing_stmt = select(models.UserInvitation).where(models.UserInvitation.invitee_id == invitee.id)
+    existing = session.scalars(existing_stmt).first()
+    if existing:
+        return existing
+    invitation = models.UserInvitation(inviter_id=inviter.id, invitee_id=invitee.id)
+    session.add(invitation)
+    return invitation
+
+
+def list_invitations(
+    session: Session,
+    inviter: models.User,
+    *,
+    limit: int = 20,
+    offset: int = 0,
+) -> tuple[list[models.UserInvitation], int]:
+    """Return a paginated list of invitation records for an inviter."""
+
+    safe_limit = max(1, min(limit, 100))
+    safe_offset = max(0, offset)
+    count_stmt = select(func.count()).select_from(models.UserInvitation).where(models.UserInvitation.inviter_id == inviter.id)
+    total = session.execute(count_stmt).scalar_one()
+    query = (
+        select(models.UserInvitation)
+        .options(selectinload(models.UserInvitation.invitee))
+        .where(models.UserInvitation.inviter_id == inviter.id)
+        .order_by(models.UserInvitation.created_at.desc(), models.UserInvitation.id.desc())
+        .limit(safe_limit)
+        .offset(safe_offset)
+    )
+    records = session.scalars(query).all()
+    return records, int(total)
 
 
 def activate_vip(session: Session, user: models.User) -> None:

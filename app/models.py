@@ -12,7 +12,6 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
-    String,
     Text,
     UniqueConstraint,
 )
@@ -50,6 +49,7 @@ class User(Base):
     is_admin = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), default=_now, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=_now, onupdate=_now, nullable=False)
+    invite_code = Column(String(16), unique=True, nullable=True, index=True)
     vip_activated_at = Column(DateTime(timezone=True), nullable=True)
     vip_expires_at = Column(DateTime(timezone=True), nullable=True)
     last_login_at = Column(DateTime(timezone=True), nullable=True)
@@ -63,6 +63,35 @@ class User(Base):
     push_rules = relationship("UserPushRule", back_populates="user", cascade="all, delete-orphan")
     subscriptions = relationship("UserSubscription", back_populates="user", cascade="all, delete-orphan")
     activation_logs = relationship("ActivationCode", back_populates="used_by_user")
+    invitations_sent = relationship(
+        "UserInvitation",
+        back_populates="inviter",
+        cascade="all, delete-orphan",
+        foreign_keys="UserInvitation.inviter_id",
+    )
+    received_invitation = relationship(
+        "UserInvitation",
+        back_populates="invitee",
+        uselist=False,
+        foreign_keys="UserInvitation.invitee_id",
+    )
+
+
+class UserInvitation(Base):
+    """Mapping between inviter and invitee once registration completes."""
+
+    __tablename__ = "user_invitations"
+    __table_args__ = (
+        UniqueConstraint("invitee_id", name="uq_user_invitation_invitee"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    inviter_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    invitee_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), default=_now, nullable=False)
+
+    inviter = relationship("User", back_populates="invitations_sent", foreign_keys=[inviter_id])
+    invitee = relationship("User", back_populates="received_invitation", foreign_keys=[invitee_id])
 
 
 class ActivationCode(Base):

@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app import crud, models
 from app.services import build_home_sections, HomeSection, SourceSection
+from app.migrations import apply_post_deployment_migrations
 from scripts.scheduler_service import start_scheduler
 from app.database import Base, get_db_session, get_engine, get_session_factory
 from app.schemas import BulletinOut
@@ -152,6 +153,7 @@ def create_app() -> FastAPI:
         _load_asset_manifest()
         engine = get_engine()
         Base.metadata.create_all(bind=engine)
+        apply_post_deployment_migrations(engine, get_session_factory())
         settings = get_settings()
         if settings.admin_email and settings.admin_password:
             session_factory = get_session_factory()

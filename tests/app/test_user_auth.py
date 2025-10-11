@@ -54,6 +54,60 @@ def auth_headers(tokens: dict) -> dict:
     return {"Authorization": f"Bearer {tokens['access_token']}"}
 
 
+def test_register_with_invalid_invitation_code():
+    client = create_test_client()
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": "newcomer@example.com",
+            "password": "StrongPass123!",
+            "display_name": "Newcomer",
+            "invitation_code": "ABCDE",
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "邀请码无效"
+
+
+def test_invitation_summary_and_registration_flow():
+    client = create_test_client()
+    inviter_tokens = register_and_login(client, "inviter@example.com")
+
+    summary_resp = client.get("/users/me/invitations", headers=auth_headers(inviter_tokens))
+    assert summary_resp.status_code == 200
+    summary = summary_resp.json()
+    assert summary["total"] == 0
+    invite_code = summary["invite_code"]
+    assert len(invite_code) == 5
+    assert invite_code.isalnum()
+    assert invite_code.lower() != ""
+    assert invite_code.upper() != ""
+
+    register_resp = client.post(
+        "/auth/register",
+        json={
+            "email": "invitee@example.com",
+            "password": "StrongPass123!",
+            "display_name": "受邀者",
+            "invitation_code": invite_code,
+        },
+    )
+    assert register_resp.status_code == 201
+
+    updated_summary = client.get("/users/me/invitations", headers=auth_headers(inviter_tokens))
+    assert updated_summary.status_code == 200
+    data = updated_summary.json()
+    assert data["total"] == 1
+    assert invite_code in data["invite_url"]
+    invitees = data["invitees"]
+    assert len(invitees) == 1
+    invitee = invitees[0]
+    assert invitee["display_label"].startswith("受")
+    assert invitee["display_label"].endswith("者")
+    assert invitee["display_label"] != "受邀者"
+    assert invitee["invited_at"] is not None
+
+
 def test_user_registration_login_and_profile():
     client = create_test_client()
     tokens = register_and_login(client, "user1@example.com")

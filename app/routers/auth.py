@@ -35,6 +35,12 @@ def register_user(payload: UserCreate, db: Session = Depends(get_db_session)) ->
     existing = crud.get_user_by_email(db, payload.email)
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该邮箱已注册")
+    inviter = None
+    invite_code = (payload.invitation_code or "").strip()
+    if invite_code:
+        inviter = crud.get_user_by_invite_code(db, invite_code)
+        if not inviter:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="邀请码无效")
     password_hash = hash_password(payload.password)
     user = crud.create_user(
         db,
@@ -42,6 +48,8 @@ def register_user(payload: UserCreate, db: Session = Depends(get_db_session)) ->
         password_hash=password_hash,
         display_name=payload.display_name,
     )
+    if inviter:
+        crud.record_invitation(db, inviter, user)
     db.commit()
     db.refresh(user)
     return UserOut.model_validate(user)

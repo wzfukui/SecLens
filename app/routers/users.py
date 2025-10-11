@@ -4,6 +4,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Iterable, Optional
 
+from urllib.parse import quote
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -23,6 +25,8 @@ from app.schemas import (
     SubscriptionOut,
     SubscriptionUpdate,
     VIPStatus,
+    InvitationInviteeOut,
+    InvitationSummaryOut,
 )
 from app.services.subscriptions import generate_subscription_token
 
@@ -96,6 +100,55 @@ def _subscription_to_schema(
             "updated_at": subscription.updated_at,
             "rss_url": rss_url,
         }
+    )
+
+
+def _mask_display_label(user: models.User) -> str:
+    raw = (user.display_name or user.email or "").strip()
+    if not raw:
+        return "匿名用户"
+    if "@" in raw and not user.display_name:
+        raw = raw.split("@", 1)[0]
+    if len(raw) <= 1:
+        return raw + "*"
+    if len(raw) == 2:
+        return f"{raw[0]}*"
+    mask_len = max(1, len(raw) - 2)
+    return f"{raw[0]}{'*' * mask_len}{raw[-1]}"
+
+
+@router.get("/me/invitations", response_model=InvitationSummaryOut)
+def read_invitation_summary(
+    request: Request,
+    limit: int = 20,
+    offset: int = 0,
+    db: Session = Depends(get_db_session),
+    current_user: models.User = Depends(get_current_active_user),
+) -> InvitationSummaryOut:
+    """Return invitation code, share link and invited users."""
+
+    invite_code = crud.ensure_invite_code(db, current_user)
+    invitations, total = crud.list_invitations(db, current_user, limit=limit, offset=offset)
+    db.commit()
+    db.refresh(current_user)
+    register_url = str(request.url_for("register_page"))
+    separator = "&" if "?" in register_url else "?"
+    invite_url = f"{register_url}{separator}invite={quote(invite_code)}"
+    invitees = [
+        InvitationInviteeOut(
+            display_label=_mask_display_label(inv.invitee),
+            invited_at=inv.created_at,
+        )
+        for inv in invitations
+        if inv.invitee is not None
+    ]
+    return InvitationSummaryOut(
+        invite_code=invite_code,
+        invite_url=invite_url,
+        total=total,
+        limit=limit,
+        offset=offset,
+        invitees=invitees,
     )
 
 

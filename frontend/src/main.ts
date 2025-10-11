@@ -321,6 +321,20 @@ type Subscription = {
   updated_at: string;
 };
 
+type InvitationInvitee = {
+  display_label: string;
+  invited_at: string;
+};
+
+type InvitationSummary = {
+  invite_code: string;
+  invite_url: string;
+  total: number;
+  limit: number;
+  offset: number;
+  invitees: InvitationInvitee[];
+};
+
 type PluginSummary = {
   id: number;
   slug: string;
@@ -565,13 +579,21 @@ const setupRegisterPage = () => {
   if (document.body.dataset.page !== "register") return;
   const form = document.getElementById("register-form") as HTMLFormElement | null;
   const messageEl = document.getElementById("register-message");
+  const invitationInput = form?.querySelector<HTMLInputElement>('input[name="invitation_code"]') ?? null;
   if (!form) return;
+
+  const params = new URLSearchParams(window.location.search);
+  const inviteParam = params.get("invite");
+  if (inviteParam && invitationInput) {
+    invitationInput.value = inviteParam;
+  }
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(form);
     const email = String(formData.get("email") ?? "").trim();
     const displayName = String(formData.get("display_name") ?? "").trim();
+    const inviteCode = String(formData.get("invitation_code") ?? "").trim();
     const password = String(formData.get("password") ?? "");
     const confirm = String(formData.get("confirm_password") ?? "");
     if (!email || !password) {
@@ -587,7 +609,12 @@ const setupRegisterPage = () => {
       const resp = await fetch("/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, display_name: displayName || null }),
+        body: JSON.stringify({
+          email,
+          password,
+          display_name: displayName || null,
+          invitation_code: inviteCode || null,
+        }),
       });
       if (!resp.ok) {
         throw new Error(await parseErrorResponse(resp));
@@ -647,6 +674,13 @@ const setupDashboardPage = () => {
   const subscriptionList = document.getElementById("subscription-list");
   const subscriptionForm = document.getElementById("subscription-form") as HTMLFormElement | null;
   const subscriptionMessage = document.getElementById("subscription-message");
+  const invitationCodeEl = document.getElementById("invitation-code");
+  const invitationUrlInput = document.getElementById("invitation-url") as HTMLInputElement | null;
+  const invitationCopyBtn = document.getElementById("invitation-copy") as HTMLButtonElement | null;
+  const invitationTotalEl = document.getElementById("invitation-total");
+  const invitationList = document.getElementById("invitation-users") as HTMLUListElement | null;
+  const invitationLoadMore = document.getElementById("invitation-load-more") as HTMLButtonElement | null;
+  const invitationMessage = document.getElementById("invitation-message");
   const channelsSelect = document.getElementById("subscription-channels") as HTMLSelectElement | null;
   const menuButtons = Array.from(document.querySelectorAll<HTMLButtonElement>(".dashboard-menu .menu-item"));
   const panels = Array.from(document.querySelectorAll<HTMLElement>(".dashboard-panel"));
@@ -654,6 +688,11 @@ const setupDashboardPage = () => {
   let pluginMap = new Map<string, string>();
   let currentRules: PushRule[] = [];
   let currentSubscriptions: Subscription[] = [];
+  let invitationInvitees: InvitationInvitee[] = [];
+  let invitationTotal = 0;
+  const invitationLimit = Number.parseInt(invitationList?.dataset.limit ?? "20", 10);
+  let invitationOffset = 0;
+  let invitationLoading = false;
 
   const renderVip = (status: VipStatus) => {
     if (vipStatusEl) {
@@ -885,6 +924,63 @@ const setupDashboardPage = () => {
     });
   };
 
+  const updateInvitationLoadMore = () => {
+    if (!invitationLoadMore) return;
+    const remaining = invitationTotal - invitationInvitees.length;
+    if (remaining > 0) {
+      invitationLoadMore.hidden = false;
+      invitationLoadMore.disabled = invitationLoading;
+    } else {
+      invitationLoadMore.hidden = true;
+      invitationLoadMore.disabled = true;
+    }
+  };
+
+  const renderInvitationList = () => {
+    if (!invitationList) return;
+    invitationList.innerHTML = "";
+    if (!invitationInvitees.length) {
+      const empty = document.createElement("li");
+      empty.textContent = "暂未邀请用户。";
+      invitationList.appendChild(empty);
+      return;
+    }
+    invitationInvitees.forEach((item) => {
+      const li = document.createElement("li");
+      li.classList.add("invitation-entry");
+      const title = document.createElement("strong");
+      title.className = "invitation-name";
+      title.textContent = item.display_label;
+      const meta = document.createElement("span");
+      meta.className = "invitation-time";
+      const formatted = formatDateTime(item.invited_at);
+      meta.textContent = formatted || item.invited_at;
+      li.append(title, meta);
+      invitationList.appendChild(li);
+    });
+  };
+
+  const applyInvitationSummary = (summary: InvitationSummary, append: boolean) => {
+    if (invitationCodeEl) {
+      invitationCodeEl.textContent = summary.invite_code;
+    }
+    if (invitationUrlInput) {
+      invitationUrlInput.value = summary.invite_url;
+    }
+    invitationTotal = summary.total;
+    if (invitationTotalEl) {
+      invitationTotalEl.textContent = String(summary.total);
+    }
+    if (!append || summary.offset === 0) {
+      invitationInvitees = summary.invitees.slice();
+    } else {
+      invitationInvitees = invitationInvitees.concat(summary.invitees);
+    }
+    invitationOffset = summary.offset + summary.invitees.length;
+    renderInvitationList();
+    updateInvitationLoadMore();
+  };
+
   const initializeChannelsSelect = (plugins: PluginSummary[]) => {
     pluginMap = new Map(
       plugins.map((plugin) => [plugin.slug, plugin.display_name ?? plugin.name ?? plugin.slug])
@@ -911,6 +1007,7 @@ const setupDashboardPage = () => {
         rules,
         subscriptions,
         pluginResponse,
+        invitationSummary,
       ] = await Promise.all([
         fetchJsonWithAuth<UserProfile>("/auth/me"),
         fetchJsonWithAuth<VipStatus>("/users/me/vip"),
@@ -922,6 +1019,9 @@ const setupDashboardPage = () => {
           const data = await resp.json();
           return data as { items: PluginSummary[] };
         }),
+        fetchJsonWithAuth<InvitationSummary>(
+          `/users/me/invitations?limit=${invitationLimit}&offset=0`
+        ),
       ]);
       setStoredUserMeta({ isAdmin: Boolean(user.is_admin) });
       updateAuthMenu();
@@ -938,6 +1038,8 @@ const setupDashboardPage = () => {
       currentSubscriptions = subscriptions;
       renderSubscriptions();
       initializeChannelsSelect(pluginResponse.items ?? []);
+      applyInvitationSummary(invitationSummary, false);
+      setMessage(invitationMessage, "");
     } catch (error) {
       if (error instanceof Error && error.message === AUTH_ERROR) {
         window.location.href = "/login";
@@ -1080,6 +1182,67 @@ const setupDashboardPage = () => {
           error instanceof Error ? error.message : "创建失败",
           "error"
         );
+      }
+    });
+  }
+
+  if (invitationCopyBtn && invitationUrlInput) {
+    invitationCopyBtn.addEventListener("click", async () => {
+      if (!invitationUrlInput.value) {
+        setMessage(invitationMessage, "暂无可用邀请链接", "error");
+        return;
+      }
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(invitationUrlInput.value);
+          setMessage(invitationMessage, "邀请链接已复制", "success");
+          return;
+        }
+      } catch (error) {
+        console.warn("Clipboard write failed", error);
+      }
+      invitationUrlInput.focus();
+      invitationUrlInput.select();
+      try {
+        const successful = document.execCommand && document.execCommand("copy");
+        if (successful) {
+          setMessage(invitationMessage, "邀请链接已复制", "success");
+          invitationUrlInput.blur();
+          return;
+        }
+      } catch (error) {
+        console.warn("Fallback copy failed", error);
+      }
+      setMessage(invitationMessage, "复制失败，请手动复制链接", "error");
+    });
+  }
+
+  if (invitationLoadMore) {
+    updateInvitationLoadMore();
+    invitationLoadMore.addEventListener("click", async () => {
+      if (invitationLoading) return;
+      if (invitationInvitees.length >= invitationTotal) {
+        updateInvitationLoadMore();
+        return;
+      }
+      invitationLoading = true;
+      invitationLoadMore.disabled = true;
+      setMessage(invitationMessage, "加载中…");
+      try {
+        const summary = await fetchJsonWithAuth<InvitationSummary>(
+          `/users/me/invitations?limit=${invitationLimit}&offset=${invitationOffset}`
+        );
+        applyInvitationSummary(summary, true);
+        setMessage(invitationMessage, "");
+      } catch (error) {
+        setMessage(
+          invitationMessage,
+          error instanceof Error ? error.message : "加载失败",
+          "error"
+        );
+      } finally {
+        invitationLoading = false;
+        updateInvitationLoadMore();
       }
     });
   }

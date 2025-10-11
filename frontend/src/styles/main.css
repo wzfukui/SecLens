@@ -1329,6 +1329,16 @@ body[data-page="admin"] main {
   flex-wrap: wrap;
 }
 
+.field-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.field-actions button {
+  white-space: nowrap;
+}
+
 .field-input {
   flex: 1 1 260px;
   display: flex;

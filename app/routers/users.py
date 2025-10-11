@@ -7,6 +7,7 @@ from typing import Iterable, Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from httpx import HTTPError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -28,6 +29,7 @@ from app.schemas import (
     InvitationInviteeOut,
     InvitationSummaryOut,
 )
+from app.services.notifications import send_webhook_test
 from app.services.subscriptions import generate_subscription_token
 
 
@@ -216,6 +218,33 @@ def update_notification_settings(
     db.commit()
     db.refresh(updated)
     return NotificationSettingOut.model_validate(updated)
+
+
+@router.post("/me/notifications/test-webhook")
+def trigger_webhook_test(
+    db: Session = Depends(get_db_session),
+    current_user: models.User = Depends(get_current_active_user),
+) -> dict[str, str]:
+    """Send a test webhook payload using saved notification settings."""
+
+    settings = crud.ensure_notification_settings(db, current_user)
+    if not settings.webhook_url:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请先配置 Webhook 地址")
+    if not settings.send_webhook:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Webhook 通知未启用")
+    try:
+        send_webhook_test(settings.webhook_url, current_user)
+    except HTTPError as exc:  # pragma: no cover - surface failure to client
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Webhook 测试失败: {exc}",
+        ) from exc
+    except Exception as exc:  # pragma: no cover - catch-all for unexpected failures
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Webhook 测试失败: {exc}",
+        ) from exc
+    return {"status": "sent"}
 
 
 @router.get("/me/push-rules", response_model=list[PushRuleOut])

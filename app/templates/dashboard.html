@@ -54,10 +54,13 @@
                         <label for="notification-webhook">Webhook 地址</label>
                         <input id="notification-webhook" type="url" name="webhook_url" placeholder="https://example.com/webhook">
                     </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" name="send_webhook">
-                        <span>启用</span>
-                    </label>
+                    <div class="field-actions">
+                        <label class="toggle-switch">
+                            <input type="checkbox" name="send_webhook">
+                            <span>启用</span>
+                        </label>
+                        <button id="notification-webhook-test" type="button" disabled>测试</button>
+                    </div>
                 </div>
                 <div class="field-row">
                     <div class="field-input">

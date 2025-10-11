@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from html import escape
-from typing import Iterable, Sequence
+from typing import Sequence
+from urllib.parse import urlparse
 
 import httpx
 from sqlalchemy import select
@@ -67,6 +69,7 @@ def _dispatch_notifications(user: models.User, rule: models.UserPushRule, bullet
     if not settings:
         return
 
+    title = bulletin.title or "SecLens 情报更新"
     payload = {
         "user_id": user.id,
         "rule_id": rule.id,
@@ -74,16 +77,17 @@ def _dispatch_notifications(user: models.User, rule: models.UserPushRule, bullet
         "keyword": rule.keyword,
         "bulletin": {
             "id": bulletin.id,
-            "title": bulletin.title,
+            "title": title,
             "summary": bulletin.summary,
             "origin_url": bulletin.origin_url,
             "source_slug": bulletin.source_slug,
             "published_at": bulletin.published_at.isoformat() if bulletin.published_at else None,
         },
     }
+    payload["message"] = f"[SecLens] 关键词「{rule.keyword}」命中新情报：{title}"
 
     if rule.notify_via_webhook and settings.send_webhook and settings.webhook_url:
-        _trigger_webhook(settings.webhook_url, payload)
+        _send_to_webhook(settings.webhook_url, payload, is_test=False, suppress_errors=True)
 
     if rule.notify_via_email and settings.send_email:
         recipient = settings.notify_email or user.email
@@ -91,12 +95,19 @@ def _dispatch_notifications(user: models.User, rule: models.UserPushRule, bullet
             _send_email_notification(recipient, payload)
 
 
-def _trigger_webhook(url: str, payload: dict) -> None:
+def _send_to_webhook(url: str, payload: dict, *, is_test: bool, suppress_errors: bool) -> None:
+    parsed = urlparse(url)
+    hostname = (parsed.hostname or "").lower()
+    body = payload
+    if hostname.endswith("oapi.dingtalk.com"):
+        body = _build_dingtalk_body(payload, is_test=is_test)
     try:
-        response = httpx.post(url, json=payload, timeout=5.0)
+        response = httpx.post(url, json=body, timeout=5.0)
         response.raise_for_status()
     except Exception as exc:  # pragma: no cover - best effort with logging
         logger.warning("Webhook 通知失败 %s: %s", url, exc)
+        if not suppress_errors:
+            raise
 
 
 def _send_email_notification(recipient: str, payload: dict) -> None:
@@ -134,4 +145,56 @@ def _send_email_notification(recipient: str, payload: dict) -> None:
         logger.warning("Resend 未配置，无法发送邮件到 %s", recipient)
 
 
-__all__ = ["handle_new_bulletins"]
+def send_webhook_test(url: str, user: models.User) -> None:
+    """Send a test payload to ensure webhook connectivity."""
+
+    payload = {
+        "message": "[SecLens] Webhook 测试消息：配置验证。",
+        "user_id": user.id,
+        "rule_id": None,
+        "rule_name": "Webhook 测试",
+        "keyword": "SecLens",
+        "is_test": True,
+        "sent_at": datetime.now(timezone.utc).isoformat(),
+        "bulletin": None,
+    }
+    _send_to_webhook(url, payload, is_test=True, suppress_errors=False)
+
+
+def _build_dingtalk_body(payload: dict, *, is_test: bool) -> dict:
+    """Return a DingTalk-compatible payload."""
+
+    title = payload.get("message") or "SecLens 情报更新"
+    lines: list[str] = [title]
+    if is_test:
+        lines.append("> 这是一次 SecLens Webhook 测试，请确认收到后再启用推送规则。")
+    else:
+        rule_name = payload.get("rule_name")
+        keyword = payload.get("keyword")
+        bulletin = payload.get("bulletin") or {}
+        if rule_name:
+            lines.append(f"> 规则：{rule_name}")
+        if keyword:
+            lines.append(f"> 关键词：{keyword}")
+        if bulletin:
+            if bulletin.get("title"):
+                lines.append(f"> 标题：{bulletin['title']}")
+            if bulletin.get("source_slug"):
+                lines.append(f"> 来源：{bulletin['source_slug']}")
+            if bulletin.get("summary"):
+                lines.append("")
+                lines.append(bulletin["summary"])
+            if bulletin.get("origin_url"):
+                lines.append("")
+                lines.append(f"[查看详情]({bulletin['origin_url']})")
+    markdown_text = "\n".join(lines)
+    return {
+        "msgtype": "markdown",
+        "markdown": {
+            "title": "SecLens 通知",
+            "text": markdown_text,
+        },
+    }
+
+
+__all__ = ["handle_new_bulletins", "send_webhook_test"]

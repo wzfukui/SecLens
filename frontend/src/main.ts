@@ -667,6 +667,9 @@ const setupDashboardPage = () => {
   const activationHistory = document.getElementById("activation-history");
   const activationHistoryList = document.getElementById("activation-history-list") as HTMLUListElement | null;
   const notificationForm = document.getElementById("notification-form") as HTMLFormElement | null;
+  const notificationWebhookTestBtn = document.getElementById(
+    "notification-webhook-test"
+  ) as HTMLButtonElement | null;
   const notificationMessage = document.getElementById("notification-message");
   const pushRulesList = document.getElementById("push-rules-list");
   const pushRuleForm = document.getElementById("push-rule-form") as HTMLFormElement | null;
@@ -693,6 +696,7 @@ const setupDashboardPage = () => {
   const invitationLimit = Number.parseInt(invitationList?.dataset.limit ?? "20", 10);
   let invitationOffset = 0;
   let invitationLoading = false;
+  let webhookTestCooldownUntil = 0;
 
   const renderVip = (status: VipStatus) => {
     if (vipStatusEl) {
@@ -757,6 +761,21 @@ const setupDashboardPage = () => {
     }
   };
 
+  const updateWebhookTestButton = () => {
+    if (!notificationForm || !notificationWebhookTestBtn) return;
+    const webhookInput = notificationForm.elements.namedItem("webhook_url") as HTMLInputElement | null;
+    const webhookCheckbox = notificationForm.elements.namedItem("send_webhook") as HTMLInputElement | null;
+    const hasUrl = Boolean((webhookInput?.value ?? "").trim());
+    const enabled = Boolean(webhookCheckbox?.checked && hasUrl);
+    const inCooldown = Date.now() < webhookTestCooldownUntil;
+    notificationWebhookTestBtn.disabled = !enabled || inCooldown;
+    if (inCooldown) {
+      notificationWebhookTestBtn.dataset.cooldown = "true";
+    } else {
+      delete notificationWebhookTestBtn.dataset.cooldown;
+    }
+  };
+
   const renderNotification = (setting: NotificationSetting) => {
     if (!notificationForm) return;
     const webhookInput = notificationForm.elements.namedItem("webhook_url") as HTMLInputElement | null;
@@ -767,6 +786,7 @@ const setupDashboardPage = () => {
     if (emailInput) emailInput.value = setting.notify_email ?? "";
     if (webhookCheckbox) webhookCheckbox.checked = Boolean(setting.send_webhook);
     if (emailCheckbox) emailCheckbox.checked = Boolean(setting.send_email);
+    updateWebhookTestButton();
   };
 
   const renderPushRules = () => {
@@ -1085,6 +1105,12 @@ const setupDashboardPage = () => {
   }
 
   if (notificationForm) {
+    const webhookInput = notificationForm.elements.namedItem("webhook_url") as HTMLInputElement | null;
+    const webhookCheckbox = notificationForm.elements.namedItem("send_webhook") as HTMLInputElement | null;
+    webhookInput?.addEventListener("input", updateWebhookTestButton);
+    webhookCheckbox?.addEventListener("change", updateWebhookTestButton);
+    updateWebhookTestButton();
+
     notificationForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       const formData = new FormData(notificationForm);
@@ -1110,6 +1136,36 @@ const setupDashboardPage = () => {
         );
       }
     });
+
+    if (notificationWebhookTestBtn) {
+      notificationWebhookTestBtn.addEventListener("click", async () => {
+        if (notificationWebhookTestBtn.disabled) {
+          return;
+        }
+        setMessage(notificationMessage, "正在发送测试消息…");
+        webhookTestCooldownUntil = Date.now() + 5000;
+        updateWebhookTestButton();
+        try {
+          await fetchJsonWithAuth<{ status: string }>("/users/me/notifications/test-webhook", {
+            method: "POST",
+          });
+          setMessage(notificationMessage, "测试消息已发送，请检查接收端（5 秒后可再次测试）。", "success");
+        } catch (error) {
+          setMessage(
+            notificationMessage,
+            error instanceof Error
+              ? `${error.message}（5 秒后可再次测试）`
+              : "测试消息发送失败（5 秒后可再次测试）",
+            "error"
+          );
+        } finally {
+          const remaining = Math.max(0, webhookTestCooldownUntil - Date.now());
+          window.setTimeout(() => {
+            updateWebhookTestButton();
+          }, remaining || 0);
+        }
+      });
+    }
   }
 
   if (pushRuleForm) {

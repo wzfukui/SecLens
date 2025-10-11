@@ -1,10 +1,10 @@
 {
   "slug": "antiy_safeinfor",
   "name": "Antiy SafeInfo Collector",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "entrypoint": "collector:run",
   "description": "Fetches security announcements from Antiy SafeInfo (安天每日安全简讯).",
-  "schedule": "28800",
+  "schedule": "14400",
   "source": {
     "publisher": "Antiy (安天)",
     "homepage": "https://www.antiycloud.com/#/antiy/safeinfor",

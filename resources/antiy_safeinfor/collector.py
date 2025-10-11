@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 from typing import Iterable, List, Sequence
 import json
 import logging
-import re
 from pathlib import Path
 
 import requests
@@ -16,8 +15,7 @@ from app.schemas import BulletinCreate, ContentInfo, SourceInfo
 from app.time_utils import resolve_published_at
 
 
-LIST_API_URL = "https://www.antiycloud.com/api/daily/list"
-DETAIL_URL_TEMPLATE = "https://www.antiycloud.com/#/dailydetail/{daily_time}?keyword="
+DETAIL_API_URL_TEMPLATE = "https://www.antiycloud.com/api/dailyDetail/{daily_time}"
 USER_AGENT = "SecLensAntiySafeInfoCollector/1.0"
 DEFAULT_HEADERS = {
     "Accept": "application/json, text/plain, */*",
@@ -36,8 +34,7 @@ DEFAULT_HEADERS = {
 class FetchParams:
     """Parameters for fetching Antiy SafeInfo data."""
     
-    page: int = 1
-    page_size: int = 10
+    daily_time: str | None = None  # If None, will fetch the latest
 
 
 class AntiySafeInfoCollector:
@@ -52,7 +49,7 @@ class AntiySafeInfoCollector:
         self.cache_file = self.cache_dir / "processed_ids.json"
 
     def _load_cache(self) -> set:
-        """Load processed IDs cache from file."""
+        """Load processed item IDs cache from file."""
         if self.cache_file.exists():
             try:
                 with open(self.cache_file, 'r', encoding='utf-8') as f:
@@ -63,76 +60,52 @@ class AntiySafeInfoCollector:
         return set()
 
     def _save_cache(self, ids: set) -> None:
-        """Save processed IDs cache to file."""
+        """Save processed item IDs cache to file."""
         with open(self.cache_file, 'w', encoding='utf-8') as f:
             json.dump({'ids': list(ids)}, f, ensure_ascii=False)
 
-    def _is_processed(self, item_id: int) -> bool:
+    def _is_processed(self, item_id: str) -> bool:
         """Check if an item has already been processed."""
         cache = self._load_cache()
         return item_id in cache
 
-    def _mark_processed(self, item_id: int) -> None:
+    def _mark_processed(self, item_id: str) -> None:
         """Mark an item as processed in the cache."""
         cache = self._load_cache()
         cache.add(item_id)
         self._save_cache(cache)
 
-    def fetch_list(self, params: FetchParams) -> Sequence[dict]:
-        """Fetch security announcement list from Antiy."""
-        payload = {
-            "search": {"value": ""},
-            "type": "",
-            "pagination": {
-                "current": params.page,
-                "pageSize": params.page_size,
-                "total": 0
-            },
-            "sorter": {
-                "field": "abrief_date",
-                "order": "descend"
-            },
-            "dict": {
-                "time_range": [],
-                "selValue": ""
-            }
-        }
+    def fetch_detail(self, daily_time: str) -> dict | None:
+        """Fetch detailed content from the daily detail API."""
+        detail_api_url = DETAIL_API_URL_TEMPLATE.format(daily_time=daily_time)
         
-        response = self.session.post(LIST_API_URL, json=payload, timeout=30)
-        response.raise_for_status()
-        body = response.json()
-        
-        if body.get("status") != "success":
-            logging.warning(f"Antiy API returned non-success status: {body.get('status')}")
-            return []
-        
-        data = body.get("data", {})
-        if not data:
-            return []
-        
-        current = data.get("current", [])
-        if not isinstance(current, list):
-            return []
-        
-        return current
+        try:
+            response = self.session.post(detail_api_url, json=None, timeout=30)  # The API expects null in the body
+            response.raise_for_status()
+            body = response.json()
+            
+            if body.get("status") == "success":
+                return body
+            else:
+                logging.warning(f"Antiy detail API returned non-success status: {body.get('status')}")
+                return None
+        except Exception as e:
+            logging.warning(f"Failed to fetch detail for {daily_time}: {e}")
+            return None
 
-    def fetch_detail(self, daily_time: str) -> str | None:
-        """Fetch detailed security announcement content (in this case, we just use the content provided in the list API)."""
-        # The details are already provided in the list API response, so we don't need to fetch separately
-        # But if needed for future enhancements to get more detailed content via web scraping, this could be implemented
-        return None
-
-    def normalize(self, item: dict) -> BulletinCreate | None:
+    def normalize(self, item: dict, daily_time: str) -> BulletinCreate | None:
         """Normalize security announcement data to BulletinCreate model."""
         fetched_at = datetime.now(timezone.utc)
         
-        # Extract basic info from list item
-        item_id = item.get("id")
+        # Extract basic info from the item
         title = item.get("title", "")
-        content = item.get("content", "")
-        daily_time = item.get("daily_time", "")
-        time_str = item.get("time", "")
-        status = item.get("status")
+        description = item.get("description", "")
+        tags = item.get("tags", [])
+        refer = item.get("refer", [])
+        event_time = item.get("event_time", "")
+        
+        # Create a unique ID based on title and date for deduplication
+        item_id = f"{title[:50]}_{daily_time}" if title else f"entry_{daily_time}"
         
         # Only process if we haven't seen this item before
         if self._is_processed(item_id):
@@ -141,41 +114,39 @@ class AntiySafeInfoCollector:
         # Mark this item as processed after successful normalization
         self._mark_processed(item_id)
         
-        # Prepend "安天威胁情报中心-" to the title
-        full_title = f"安天威胁情报中心-{title}" if title else "安天威胁情报中心-安全简讯"
+        # Create proper title with prefix
+        full_title = f"安天威胁情报中心-{title}" if title else f"安天威胁情报中心-安全简讯 {daily_time}"
         
-        # Parse the time_str to extract date for published_at
+        # Parse the event_time for published_at
         published_at, time_meta = resolve_published_at(
             "antiy_safeinfor",
             [
-                (time_str, "item.time"),
+                (event_time, "item.event_time"),
+                (f"{daily_time} 06:00", "daily_time with default time"),
             ],
             fetched_at=fetched_at,
         )
-        
-        # Extract text content by removing HTML tags from the content
-        soup = BeautifulSoup(content, 'html.parser')
-        text_content = soup.get_text()
         
         # Create origin URL for the specific daily report
         origin_url = f"https://www.antiycloud.com/#/dailydetail/{daily_time}?keyword=" if daily_time else None
         
         source_info = SourceInfo(
             source_slug="antiy_safeinfor",
-            external_id=str(item_id) if item_id else None,
+            external_id=item_id,
             origin_url=origin_url,
         )
         
         content_info = ContentInfo(
             title=full_title,
-            summary=text_content[:200].strip() if text_content else full_title[:200],
-            body_text=text_content,
+            summary=description[:200] if description else full_title[:200],
+            body_text=description,
             published_at=published_at,
             language="zh-CN",
         )
         
         # Build labels
         labels = ["antiy", "security_announcement"]
+        labels.extend([f"tag:{tag}" for tag in tags if tag])
         if daily_time:
             labels.append(f"daily:{daily_time}")
         
@@ -183,17 +154,18 @@ class AntiySafeInfoCollector:
         topics = ["official_bulletin", "security_announcement"]
         
         extra: dict[str, object] = {
-            "item_id": item_id,
-            "title": title,
             "daily_time": daily_time,
-            "time_str": time_str,
-            "status": status,
+            "tags": tags,
+            "refer": refer,
+            "event_time": event_time,
+            "original_title": title,
         }
         
         if time_meta:
             extra["time_meta"] = time_meta
 
         raw = dict(item)
+        raw["daily_time"] = daily_time
 
         return BulletinCreate(
             source=source_info,
@@ -209,13 +181,26 @@ class AntiySafeInfoCollector:
     def collect(self, params: FetchParams | None = None) -> List[BulletinCreate]:
         """Collect and normalize Antiy SafeInfo security announcement data."""
         params = params or FetchParams()
-        items = self.fetch_list(params)
-        bulletins = []
         
+        # If no daily_time is specified, use today's date in YYYYMMDD format
+        daily_time = params.daily_time
+        if not daily_time:
+            daily_time = datetime.now().strftime("%Y%m%d")
+        
+        data = self.fetch_detail(daily_time)
+        if not data:
+            return []
+        
+        items = data.get("data", {}).get("content", [])
+        if not isinstance(items, list):
+            return []
+        
+        bulletins = []
         for item in items:
-            bulletin = self.normalize(item)
-            if bulletin is not None:
-                bulletins.append(bulletin)
+            if isinstance(item, dict):
+                bulletin = self.normalize(item, daily_time)
+                if bulletin is not None:
+                    bulletins.append(bulletin)
         
         return bulletins
 

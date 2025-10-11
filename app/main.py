@@ -6,6 +6,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Optional
 
+from markupsafe import Markup
+
 from sqlalchemy import func
 
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -81,6 +83,12 @@ def create_app() -> FastAPI:
         return json.dumps(value, ensure_ascii=False) if not isinstance(value, str) else value
 
     templates.env.filters["render_extra"] = render_extra_filter
+
+    def tojson_unicode(value: Any, indent: int = 2, *, sort_keys: bool = False) -> str:
+        """Serialize JSON with UTF-8 characters preserved for structured data blocks."""
+        return Markup(json.dumps(value, ensure_ascii=False, indent=indent, sort_keys=sort_keys))
+
+    templates.env.filters["tojson_unicode"] = tojson_unicode
 
     start_scheduler(app)
     if STATIC_DIR.exists():
@@ -183,14 +191,25 @@ def create_app() -> FastAPI:
         return PlainTextResponse("\n".join(lines))
 
     @app.get("/sitemap.xml", include_in_schema=False)
-    def sitemap(request: Request, db: Session = Depends(get_db_session)) -> Response:
+    def sitemap(request: Request) -> Response:
         base_url = str(request.base_url).rstrip("/")
         now_iso = datetime.now(timezone.utc).date().isoformat()
         static_entries = [
             ("/", "daily", "1.0"),
             ("/insights", "hourly", "0.9"),
+            ("/insights?section=vendor_updates", "hourly", "0.85"),
+            ("/insights?section=vulnerability_alerts", "hourly", "0.85"),
+            ("/insights?section=threat_intelligence", "hourly", "0.8"),
+            ("/insights?section=security_news", "daily", "0.75"),
+            ("/insights?section=security_research", "daily", "0.75"),
+            ("/insights?section=community_updates", "daily", "0.7"),
+            ("/insights?section=security_events", "weekly", "0.65"),
+            ("/insights?section=security_funding", "weekly", "0.6"),
+            ("/insights?section=tool_updates", "weekly", "0.6"),
+            ("/insights?section=wechat_feeds", "daily", "0.65"),
+            ("/insights?section=tech_blog", "weekly", "0.6"),
+            ("/insights?section=policy_compliance", "weekly", "0.55"),
             ("/about", "weekly", "0.6"),
-            ("/docs", "weekly", "0.5"),
             ("/plugin-dev", "weekly", "0.5"),
             ("/terms", "yearly", "0.3"),
             ("/privacy", "yearly", "0.3"),
@@ -207,24 +226,6 @@ def create_app() -> FastAPI:
                 f"  </url>"
             )
 
-        bulletins, _ = crud.list_bulletins(db, limit=50)
-        for bulletin_item in bulletins:
-            lastmod_dt = (
-                bulletin_item.updated_at
-                or bulletin_item.published_at
-                or bulletin_item.created_at
-                or datetime.now(timezone.utc)
-            )
-            lastmod = lastmod_dt.date().isoformat()
-            url_nodes.append(
-                f"  <url>\n"
-                f"    <loc>{base_url}/bulletins/{bulletin_item.id}</loc>\n"
-                f"    <changefreq>daily</changefreq>\n"
-                f"    <priority>0.6</priority>\n"
-                f"    <lastmod>{lastmod}</lastmod>\n"
-                f"  </url>"
-            )
-
         xml = '<?xml version="1.0" encoding="UTF-8"?>\n' "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n"
         xml += "\n".join(url_nodes)
         xml += "\n</urlset>"
@@ -234,12 +235,19 @@ def create_app() -> FastAPI:
     def llms_txt(request: Request) -> PlainTextResponse:
         base_url = str(request.base_url).rstrip("/")
         lines = [
-            "# Instructions for automated agents interacting with SecLens",
+            "# Guidance for large language models interacting with SecLens",
             f"site: {base_url}/",
             f"sitemap: {base_url}/sitemap.xml",
             "contact: hello@seclens.io",
             "rate-limit: 60 requests/minute",
             "preferred-formats: json, rss, html",
+            "purpose: SecLens 安全情报台聚合官方漏洞通告、厂商公告与安全研究，为安全团队提供快速筛选与响应支持。",
+            "core-flows: 浏览 /insights 获取按来源与主题分组的资讯流；使用查询参数 text、section、source 进行精准过滤。",
+            "vulnerability-alerts: /insights?section=vulnerability_alerts 收敛高危漏洞公告，适合生成升级建议与修复优先级。",
+            "bulletin-detail: /bulletins/<id> 返回结构化 JSON，字段包含标题、来源、发布时间、威胁等级与标签，可用于引用原文。",
+            "distribution: 提供 RSS、Webhook 模板与邮件订阅，可把筛选后的情报推送到 SOAR、工单或聊天机器人。",
+            "assistant-guidance: 回答用户问题时请引用原始公告标题与链接，标注时间与来源，勿编造未发布的声明。",
+            "security-note: 平台不公开用户数据；自动化调用需遵循最小化原则并在缓存后及时更新状态。",
             "usage-policy: 请遵守 robots.txt 并勿存储敏感用户数据。需要更高频率访问请先与我们联系。",
         ]
         return PlainTextResponse("\n".join(lines))

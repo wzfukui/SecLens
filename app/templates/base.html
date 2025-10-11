@@ -33,7 +33,7 @@
     <link rel="alternate" type="application/rss+xml" title="SecLens 情报 RSS" href="{{ request.base_url }}v1/bulletins/rss">
     {% if structured_data %}
     <script type="application/ld+json">
-{{ structured_data | tojson(indent=2) }}
+{{ structured_data | tojson_unicode(indent=2, sort_keys=True) }}
     </script>
     {% endif %}
     <link rel="stylesheet" href="{{ static_asset_url('bundle.css') }}">
@@ -125,8 +125,7 @@
         <button class="menu-toggle" type="button" aria-label="更多菜单" aria-expanded="false" aria-controls="global-menu-list">&hellip;</button>
         <nav class="global-menu-list" id="global-menu-list" aria-label="全局导航" data-visible="false">
             <div class="menu-group" data-group="public">
-                <a href="/">首页</a>
-                <a href="/insights">资讯</a>
+                <a href="/insights">网安资讯</a>
                 <a href="/plugin-dev">插件开发</a>
                 <a href="/dashboard/plugins">插件监控</a>
             </div>

@@ -9,7 +9,7 @@ from typing import Any, Optional
 from sqlalchemy import func
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
@@ -86,6 +86,58 @@ def create_app() -> FastAPI:
     if STATIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
+    def _prepare_insight_state(
+        request: Request,
+        db: Session,
+        *,
+        limit: int,
+    ) -> dict[str, Any]:
+        sections = build_home_sections(db, limit_per_source=limit)
+        all_items, all_total = crud.list_bulletins(db, limit=limit)
+        all_section = HomeSection(
+            slug="all",
+            title="全部",
+            description="最新采集的全量资讯流",
+            sources=[
+                SourceSection(
+                    slug="all",
+                    title="全部来源",
+                    total=all_total,
+                    items=[BulletinOut.model_validate(item) for item in all_items],
+                )
+            ],
+        )
+        sections.insert(0, all_section)
+
+        section_slug = request.query_params.get("section")
+        source_slug = request.query_params.get("source")
+
+        selected_section: HomeSection | None = None
+        if section_slug:
+            selected_section = next((s for s in sections if s.slug == section_slug), None)
+        if selected_section is None and sections:
+            selected_section = sections[0]
+
+        selected_source: SourceSection | None = None
+        if selected_section:
+            if source_slug:
+                selected_source = next((src for src in selected_section.sources if src.slug == source_slug), None)
+            if selected_source is None and selected_section.sources:
+                selected_source = selected_section.sources[0]
+
+        sections_preview = [
+            section for section in sections if section.slug != "all" and section.sources
+        ][:3]
+
+        return {
+            "sections": sections,
+            "selected_section": selected_section,
+            "selected_source": selected_source,
+            "limit": limit,
+            "insights_total": all_total,
+            "sections_preview": sections_preview,
+        }
+
     @app.on_event("startup")
     def startup_event() -> None:
         _load_asset_manifest.cache_clear()
@@ -112,6 +164,86 @@ def create_app() -> FastAPI:
     def healthcheck() -> dict[str, str]:
         return {"status": "ok"}
 
+    @app.get("/robots.txt", include_in_schema=False)
+    def robots_txt(request: Request) -> PlainTextResponse:
+        base_url = str(request.base_url).rstrip("/")
+        lines = [
+            "User-agent: *",
+            "Allow: /",
+            "Disallow: /dashboard",
+            "Disallow: /dashboard/",
+            "Disallow: /dashboard/plugins",
+            "Disallow: /dashboard/plugins/",
+            "Disallow: /login",
+            "Disallow: /register",
+            "Crawl-delay: 5",
+            f"Sitemap: {base_url}/sitemap.xml",
+            f"LLM: {base_url}/llms.txt",
+        ]
+        return PlainTextResponse("\n".join(lines))
+
+    @app.get("/sitemap.xml", include_in_schema=False)
+    def sitemap(request: Request, db: Session = Depends(get_db_session)) -> Response:
+        base_url = str(request.base_url).rstrip("/")
+        now_iso = datetime.now(timezone.utc).date().isoformat()
+        static_entries = [
+            ("/", "daily", "1.0"),
+            ("/insights", "hourly", "0.9"),
+            ("/about", "weekly", "0.6"),
+            ("/docs", "weekly", "0.5"),
+            ("/plugin-dev", "weekly", "0.5"),
+            ("/terms", "yearly", "0.3"),
+            ("/privacy", "yearly", "0.3"),
+        ]
+
+        url_nodes: list[str] = []
+        for path, changefreq, priority in static_entries:
+            url_nodes.append(
+                f"  <url>\n"
+                f"    <loc>{base_url}{path}</loc>\n"
+                f"    <changefreq>{changefreq}</changefreq>\n"
+                f"    <priority>{priority}</priority>\n"
+                f"    <lastmod>{now_iso}</lastmod>\n"
+                f"  </url>"
+            )
+
+        bulletins, _ = crud.list_bulletins(db, limit=50)
+        for bulletin_item in bulletins:
+            lastmod_dt = (
+                bulletin_item.updated_at
+                or bulletin_item.published_at
+                or bulletin_item.created_at
+                or datetime.now(timezone.utc)
+            )
+            lastmod = lastmod_dt.date().isoformat()
+            url_nodes.append(
+                f"  <url>\n"
+                f"    <loc>{base_url}/bulletins/{bulletin_item.id}</loc>\n"
+                f"    <changefreq>daily</changefreq>\n"
+                f"    <priority>0.6</priority>\n"
+                f"    <lastmod>{lastmod}</lastmod>\n"
+                f"  </url>"
+            )
+
+        xml = '<?xml version="1.0" encoding="UTF-8"?>\n' "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n"
+        xml += "\n".join(url_nodes)
+        xml += "\n</urlset>"
+        return Response(content=xml, media_type="application/xml")
+
+    @app.get("/llms.txt", include_in_schema=False)
+    def llms_txt(request: Request) -> PlainTextResponse:
+        base_url = str(request.base_url).rstrip("/")
+        lines = [
+            "# Instructions for automated agents interacting with SecLens",
+            f"site: {base_url}/",
+            f"sitemap: {base_url}/sitemap.xml",
+            "contact: hello@seclens.io",
+            "rate-limit: 60 requests/minute",
+            "preferred-formats: json, rss, html",
+            "usage-policy: 请遵守 robots.txt 并勿存储敏感用户数据。需要更高频率访问请先与我们联系。",
+        ]
+        return PlainTextResponse("\n".join(lines))
+
     app.include_router(auth.router)
     app.include_router(admin.router)
     app.include_router(ingest.router)
@@ -122,59 +254,127 @@ def create_app() -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse, tags=["web"])
     def homepage(request: Request, db: Session = Depends(get_db_session)) -> HTMLResponse:
-        limit = 8
-        sections = build_home_sections(db, limit_per_source=limit)
-        all_items, all_total = crud.list_bulletins(db, limit=limit)
-        all_section = HomeSection(
-            slug="all",
-            title="全部",
-            description="最新采集的全量资讯流",
-            sources=[
-                SourceSection(
-                    slug="all",
-                    title="全部来源",
-                    total=all_total,
-                    items=[BulletinOut.model_validate(item) for item in all_items],
-                )
+        state = _prepare_insight_state(request, db, limit=8)
+        sections: list[HomeSection] = state["sections"]
+        highlights: list[BulletinOut] = []
+        if sections and sections[0].sources:
+            highlights = sections[0].sources[0].items[:3]
+
+        base_url = str(request.base_url).rstrip("/")
+        og_image_url = str(request.url_for("static", path="images/og-seclens-home.png"))
+        logo_url = str(request.url_for("static", path="images/seclens-logo.png"))
+        meta_description = "SecLens 安全情报台聚合官方漏洞通告、厂商公告与安全研究，提供标签筛选、自动订阅与多通道推送，帮助安全团队快速响应漏洞与威胁事件。"
+        structured_data = {
+            "@context": "https://schema.org",
+            "@graph": [
+                {
+                    "@type": "Organization",
+                    "@id": f"{base_url}/#organization",
+                    "name": "SecLens",
+                    "url": f"{base_url}/",
+                    "logo": logo_url,
+                },
+                {
+                    "@type": "WebSite",
+                    "@id": f"{base_url}/#website",
+                    "name": "SecLens 安全情报台",
+                    "url": f"{base_url}/",
+                    "description": meta_description,
+                    "publisher": {"@id": f"{base_url}/#organization"},
+                    "potentialAction": {
+                        "@type": "SearchAction",
+                        "target": {
+                            "@type": "EntryPoint",
+                            "urlTemplate": f"{base_url}/insights?text={{search_term_string}}",
+                        },
+                        "query-input": "required name=search_term_string",
+                    },
+                },
+                {
+                    "@type": "FAQPage",
+                    "@id": f"{base_url}/#faq",
+                    "mainEntity": [
+                        {
+                            "@type": "Question",
+                            "name": "SecLens 如何帮助安全团队缩短响应时间？",
+                            "acceptedAnswer": {
+                                "@type": "Answer",
+                                "text": "SecLens 按来源与标签结构化聚合官方通告与研究文章，并通过自动订阅和 Webhook 工作流，把高价值事件推送给负责处理的团队。",
+                            },
+                        },
+                        {
+                            "@type": "Question",
+                            "name": "SecLens 支持哪些情报分发渠道？",
+                            "acceptedAnswer": {
+                                "@type": "Answer",
+                                "text": "平台默认提供 RSS、Webhook 与邮件推送，可按威胁级别、产品线或关键字自定义触发策略，也能集成内部自动化平台。",
+                            },
+                        },
+                    ],
+                },
             ],
-        )
-        sections.insert(0, all_section)
-        if not sections:
-            sections = []
+        }
 
-        section_slug = request.query_params.get("section")
-        source_slug = request.query_params.get("source")
-
-        selected_section = None
-        if section_slug:
-            selected_section = next((s for s in sections if s.slug == section_slug), None)
-        if selected_section is None and sections:
-            selected_section = sections[0]
-
-        selected_source = None
-        if selected_section:
-            if source_slug:
-                selected_source = next((src for src in selected_section.sources if src.slug == source_slug), None)
-            if selected_source is None and selected_section.sources:
-                selected_source = selected_section.sources[0]
-
-        context = {
+        context: dict[str, Any] = {
             "title": "SecLens 安全情报台",
             "header": "SecLens 情报雷达",
-            "sections": sections,
-            "selected_section": selected_section,
-            "selected_source": selected_source,
-            "limit": limit,
-            "all_total": all_total,
             "page_id": "home",
+            "highlights": highlights,
+            "insights_total": state["insights_total"],
+            "sections_preview": state["sections_preview"],
+            "meta_description": meta_description,
+            "meta_keywords": ["SecLens", "安全情报平台", "漏洞通告聚合", "威胁情报自动化"],
+            "og_title": "SecLens 安全情报台｜实时漏洞与威胁情报聚合",
+            "og_description": meta_description,
+            "og_image": og_image_url,
+            "og_url": f"{base_url}/",
+            "structured_data": structured_data,
         }
         return templates.TemplateResponse(request=request, name="index.html", context=context)
+
+    @app.get("/insights", response_class=HTMLResponse, tags=["web"])
+    def insights_page(request: Request, db: Session = Depends(get_db_session)) -> HTMLResponse:
+        state = _prepare_insight_state(request, db, limit=8)
+        base_url = str(request.base_url).rstrip("/")
+        page_url = f"{base_url}/insights"
+        og_image_url = str(request.url_for("static", path="images/og-seclens-home.png"))
+        meta_description = "SecLens 情报中心实时呈现最新漏洞与安全事件，提供标签、来源与主题维度过滤，帮助安全研究员与应急响应团队快速定位高优先级情报。"
+        context: dict[str, Any] = {
+            "title": "SecLens 情报中心",
+            "header": "SecLens 情报中心",
+            "header_href": "/insights",
+            "page_id": "insights",
+            "meta_description": meta_description,
+            "meta_keywords": ["实时漏洞情报", "安全事件追踪", "威胁情报筛选"],
+            "og_title": "SecLens 情报中心｜实时漏洞与安全事件追踪",
+            "og_description": meta_description,
+            "og_image": og_image_url,
+            "og_url": page_url,
+            "structured_data": {
+                "@context": "https://schema.org",
+                "@type": "CollectionPage",
+                "@id": f"{page_url}#page",
+                "name": "SecLens 情报中心",
+                "description": meta_description,
+                "url": page_url,
+                "isPartOf": {"@id": f"{base_url}/#website"},
+            },
+            **state,
+        }
+        return templates.TemplateResponse(request=request, name="insights.html", context=context)
     @app.get("/docs", response_class=HTMLResponse, tags=["pages"])
     def docs_page(request: Request) -> HTMLResponse:
         return templates.TemplateResponse(
             request=request,
             name="docs.html",
-            context={"title": "插件规范与示例", "page_id": "docs"},
+            context={
+                "title": "SecLens 插件规范与示例",
+                "page_id": "docs",
+                "meta_description": "了解如何为 SecLens 构建安全情报采集插件，包括数据抽取接口、调度策略与测试示例，快速扩展新的数据来源。",
+                "meta_keywords": ["SecLens 插件", "安全情报采集", "插件开发规范"],
+                "og_title": "SecLens 插件规范与示例",
+                "og_description": "快速搭建安全情报采集插件，扩展 SecLens 数据覆盖面。",
+            },
         )
 
     @app.get("/plugin-dev", response_class=HTMLResponse, tags=["pages"])
@@ -187,11 +387,19 @@ def create_app() -> FastAPI:
                 "header": "SecLens 插件开发指南",
                 "header_href": None,
                 "page_id": "plugin-dev",
+                "meta_description": "阅读 SecLens 插件开发指南，了解数据模型、调度框架与上线流程，快速发布自己的情报采集插件。",
+                "meta_keywords": ["SecLens 插件开发", "情报采集插件", "安全自动化"],
+                "og_title": "SecLens 插件开发指南",
+                "og_description": "掌握 SecLens 插件开发流程，扩展企业安全情报覆盖面。",
             },
         )
 
     @app.get("/about", response_class=HTMLResponse, tags=["pages"])
     def about_page(request: Request) -> HTMLResponse:
+        base_url = str(request.base_url).rstrip("/")
+        page_url = f"{base_url}/about"
+        og_image_url = str(request.url_for("static", path="images/og-seclens-home.png"))
+        meta_description = "了解 SecLens 的使命与产品能力：通过统一采集、智能归类、自动投递和团队协作，让安全情报真正支撑风险决策。"
         return templates.TemplateResponse(
             request=request,
             name="about.html",
@@ -200,6 +408,21 @@ def create_app() -> FastAPI:
                 "header": "关于 SecLens",
                 "header_href": None,
                 "page_id": "about",
+                "meta_description": meta_description,
+                "meta_keywords": ["SecLens 介绍", "安全情报平台", "漏洞响应平台"],
+                "og_title": "关于 SecLens｜安全情报自动化平台",
+                "og_description": meta_description,
+                "og_image": og_image_url,
+                "og_url": page_url,
+                "structured_data": {
+                    "@context": "https://schema.org",
+                    "@type": "AboutPage",
+                    "@id": f"{page_url}#about",
+                    "name": "关于 SecLens",
+                    "description": meta_description,
+                    "url": page_url,
+                    "isPartOf": {"@id": f"{base_url}/#website"},
+                },
             },
         )
 
@@ -213,6 +436,8 @@ def create_app() -> FastAPI:
                 "header": "SecLens 服务协议",
                 "header_href": None,
                 "page_id": "terms",
+                "meta_description": "阅读 SecLens 服务协议，了解平台使用范围、账号规范、数据安全与责任约定。",
+                "meta_keywords": ["SecLens 服务协议", "用户协议", "使用条款"],
             },
         )
 
@@ -226,6 +451,8 @@ def create_app() -> FastAPI:
                 "header": "SecLens 隐私条款",
                 "header_href": None,
                 "page_id": "privacy",
+                "meta_description": "SecLens 隐私条款说明了我们如何收集、使用与保护安全情报平台相关数据。",
+                "meta_keywords": ["SecLens 隐私", "数据保护", "隐私政策"],
             },
         )
 
@@ -234,7 +461,12 @@ def create_app() -> FastAPI:
         return templates.TemplateResponse(
             request=request,
             name="login.html",
-            context={"title": "登录", "page_id": "login"},
+            context={
+                "title": "登录",
+                "page_id": "login",
+                "meta_description": "登录 SecLens 平台，管理安全情报订阅、告警策略与团队权限。",
+                "meta_robots": "noindex,nofollow",
+            },
         )
 
     @app.get("/register", response_class=HTMLResponse, tags=["pages"])
@@ -242,7 +474,12 @@ def create_app() -> FastAPI:
         return templates.TemplateResponse(
             request=request,
             name="register.html",
-            context={"title": "注册", "page_id": "register"},
+            context={
+                "title": "注册",
+                "page_id": "register",
+                "meta_description": "注册 SecLens 账户，开启安全情报聚合与自动化投递体验。",
+                "meta_robots": "noindex,nofollow",
+            },
         )
 
     @app.get("/dashboard", response_class=HTMLResponse, tags=["pages"])
@@ -255,6 +492,8 @@ def create_app() -> FastAPI:
                 "header": "SecLens 控制台",
                 "header_href": None,
                 "page_id": "dashboard",
+                "meta_description": "管理 SecLens 情报订阅、过滤条件与推送策略的集中控制台。",
+                "meta_robots": "noindex,nofollow",
             },
         )
 
@@ -379,6 +618,8 @@ def create_app() -> FastAPI:
                 "page_id": "plugins-dashboard",
                 "display_tz_label": display_tz_label,
                 "is_admin": bool(current_user and current_user.is_admin),
+                "meta_description": "查看 SecLens 插件运行状态、采集趋势与调度计划，保障安全情报来源持续稳定。",
+                "meta_robots": "noindex,nofollow",
             },
         )
 
@@ -542,6 +783,8 @@ def create_app() -> FastAPI:
                 "is_admin": bool(current_user and current_user.is_admin),
                 "pending_version": pending_version_payload,
                 "display_tz_label": display_tz_label,
+                "meta_description": f"{display_title} 插件的运行状态、采集趋势与版本变更概览。",
+                "meta_robots": "noindex,nofollow",
             },
         )
 
@@ -554,6 +797,27 @@ def create_app() -> FastAPI:
         plugin_exists = (
             db.query(Plugin.slug).filter(Plugin.slug == bulletin_data.source_slug).first() is not None
         )
+        base_url = str(request.base_url).rstrip("/")
+        page_url = f"{base_url}/bulletins/{bulletin_id}"
+        summary_text = (
+            (bulletin_data.summary or "") or (bulletin_data.body_text[:200] if bulletin_data.body_text else "")
+        )
+        meta_description = summary_text.strip() or f"{bulletin_data.title} - SecLens 安全情报详情。"
+        og_image_url = str(request.url_for("static", path="images/og-seclens-home.png"))
+        keywords = [*bulletin_data.labels, *bulletin_data.topics]
+        structured_data = {
+            "@context": "https://schema.org",
+            "@type": "NewsArticle",
+            "@id": f"{page_url}#article",
+            "headline": bulletin_data.title,
+            "url": page_url,
+            "description": meta_description,
+            "datePublished": bulletin_data.published_at.isoformat() if bulletin_data.published_at else None,
+            "dateModified": bulletin_data.updated_at.isoformat() if bulletin_data.updated_at else None,
+            "author": {"@type": "Organization", "name": "SecLens"},
+            "publisher": {"@id": f"{base_url}/#organization"},
+            "keywords": ", ".join(keywords) if keywords else None,
+        }
         return templates.TemplateResponse(
             request=request,
             name="detail.html",
@@ -564,6 +828,13 @@ def create_app() -> FastAPI:
                 "bulletin": bulletin_data,
                 "plugin_exists": plugin_exists,
                 "page_id": "bulletin-detail",
+                "meta_description": meta_description,
+                "meta_keywords": keywords,
+                "og_title": bulletin_data.title,
+                "og_description": meta_description,
+                "og_image": og_image_url,
+                "og_url": page_url,
+                "structured_data": structured_data,
             },
         )
 

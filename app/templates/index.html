@@ -1,121 +1,281 @@
 {% extends "base.html" %}
 {% block content %}
-<nav class="top-nav">
-    {% for section in sections %}
-        <a href="?section={{ section.slug }}" class="{% if selected_section and selected_section.slug == section.slug %}active{% endif %}">{{ section.title }}</a>
-    {% endfor %}
-</nav>
-
-<div class="layout">
-    <aside class="sources-panel">
-        <h2>来源</h2>
-        {% if selected_section and selected_section.sources %}
-            <ul class="source-list">
-                {% for source in selected_section.sources %}
-                    <li>
-                        <a href="?section={{ selected_section.slug }}&source={{ source.slug }}" class="{% if selected_source and selected_source.slug == source.slug %}active{% endif %}">
-                            <span>{{ source.title }}</span>
-                            <span class="count">{{ source.total }}</span>
-                        </a>
-                    </li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p class="empty-state">当前分组暂无数据源</p>
-        {% endif %}
-    </aside>
-
-    <section class="content-panel">
-        {% if selected_section %}
-            <div class="section-header">
-                <div>
-                    <h2>{{ selected_section.title }}</h2>
-                    {% if selected_section.description %}
-                        <p>{{ selected_section.description }}</p>
+<div class="landing-shell">
+    <section class="landing-hero">
+        <div class="landing-hero__inner">
+            <div class="landing-hero__copy">
+                <h2>SecLens：安全运营团队的实时威胁情报工作台</h2>
+                <p>SecLens 安全情报台将官方漏洞通告、厂商公告与安全研究统一入库，通过语义标签、实体抽取与自动投递，让安全运营团队第一时间掌握高危变化并驱动落地响应。</p>
+                <div class="landing-actions">
+                    <a class="btn btn-elevated" href="/register">激活VIP</a>
+                    <a class="btn btn-ghost" href="/insights">查看实时情报</a>
+                </div>
+                <dl class="landing-hero__highlights">
+                    <div>
+                        <dt>语义聚合</dt>
+                        <dd>覆盖官方通报、社区动态与厂商公告，实体识别去重并沉淀知识图谱</dd>
+                    </div>
+                    <div>
+                        <dt>精确过滤</dt>
+                        <dd>按标签、关键词与主题切换视角，秒级锁定影响范围</dd>
+                    </div>
+                    <div>
+                        <dt>自动投递</dt>
+                        <dd>RSS、Webhook、邮件三种通道联动，实时串联响应流程</dd>
+                    </div>
+                </dl>
+            </div>
+            <div class="landing-hero__visual">
+                <div class="landing-hero__card-header">
+                    <span class="landing-hero__badge">最新情报快照</span>
+                    {% if insights_total %}
+                        <span class="landing-hero__total">已收录 {{ insights_total }} 条</span>
                     {% endif %}
                 </div>
-                {% if selected_source %}
-                    <div class="section-actions">
-                        <button class="rss-button" data-source="{{ selected_source.title }}" data-slug="{{ selected_source.slug }}">
-                            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M3 3a1 1 0 011-1c7.18 0 13 5.82 13 13a1 1 0 11-2 0A10.99 10.99 0 004 4a1 1 0 01-1-1zm0 6a1 1 0 011-1 7 7 0 017 7 1 1 0 11-2 0 5 5 0 00-5-5 1 1 0 01-1-1zm2 7a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                            RSS 订阅
-                        </button>
-                    </div>
+                {% if highlights %}
+                    <ul class="landing-hero__list">
+                        {% for item in highlights %}
+                            <li>
+                                <span class="landing-hero__time">{{ item.published_at|display_time('%m-%d %H:%M') or '刚刚' }}</span>
+                                <a href="/bulletins/{{ item.id }}">{{ item.title }}</a>
+                                {% set excerpt = (item.summary or item.body_text) %}
+                                {% if excerpt %}
+                                    <p>{{ excerpt|truncate(120, True, "…") }}</p>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="landing-hero__empty">情报同步中，稍后查看最新动态。</p>
                 {% endif %}
             </div>
-        {% endif %}
+        </div>
+    </section>
 
-        {% if selected_source and selected_source.items %}
-            {% set initial_count = selected_source.items|length %}
-            <ul id="bulletin-list" class="bulletin-list" data-source="{{ selected_source.slug }}" data-total="{{ selected_source.total }}" data-offset="{{ initial_count }}" data-limit="{{ limit }}">
-                {% for bulletin in selected_source.items %}
-                    <li class="bulletin-card">
-                        <h2><a href="/bulletins/{{ bulletin.id }}">{{ bulletin.title }}</a></h2>
-                        <div class="meta">
-                            {% if bulletin.published_at %}
-                                发布时间 {{ bulletin.published_at|display_time or '—' }}
-                            {% endif %}
-                            {% if bulletin.fetched_at %}
-                                抓取时间 {{ bulletin.fetched_at|display_time or '—' }}
-                            {% endif %}
-                        </div>
-                        {% set display_text = bulletin.summary or bulletin.body_text %}
-                        {% if display_text %}
-                            {% set snippet = display_text[:360] %}
-                            {% set show_more = display_text|length > 360 %}
-                            <div class="excerpt" data-expanded="false" data-show-more="{{ 'true' if show_more else 'false' }}">
-                                <p>{{ snippet }}{% if show_more %}<span class="ellipsis">…</span>{% endif %}</p>
-                                <div class="snippet-text" hidden>{{ snippet }}</div>
-                                <div class="full-text" hidden>{{ display_text }}</div>
-                                {% if show_more %}
-                                    <button class="toggle-more" type="button">更多</button>
-                                {% endif %}
-                            </div>
+    <section class="landing-section landing-features">
+        <div class="landing-section__header">
+            <h3>核心能力</h3>
+            <p>围绕安全运营的采集、分析、协作与投递四个环节构建闭环能力，让团队在高压响应场景下保持信息同步。</p>
+        </div>
+        <div class="landing-feature-grid">
+            <article class="feature-card">
+                <h4>结构化采集</h4>
+                <p>插件化采集架构快速扩展新来源，自动抽取实体、漏洞编号与受影响产品，减少手工整理成本。</p>
+                <ul>
+                    <li>主流通告与研究渠道即插即用</li>
+                    <li>统一字段结构，便于全文检索与溯源</li>
+                    <li>支持离线开发和快速发布插件</li>
+                </ul>
+            </article>
+            <article class="feature-card">
+                <h4>智能筛选</h4>
+                <p>多维标签、主题与关键词组合过滤，自定义视角让安全研究员、运营与开发团队各取所需。</p>
+                <ul>
+                    <li>识别 CVE、CNVD、厂商公告等关键实体</li>
+                    <li>保存筛选组合，关联响应手册</li>
+                    <li>仪表盘视图与详细原文一键切换</li>
+                </ul>
+            </article>
+            <article class="feature-card">
+                <h4>自动化投递</h4>
+                <p>订阅策略将情报送达正确角色，Webhook 与邮件推送接入现有告警、工单与自动化平台。</p>
+                <ul>
+                    <li>RSS、Webhook、邮件多种触达方式</li>
+                    <li>按事件类型或敏感关键词触发提醒</li>
+                    <li>全程记录投递日志与失败重试</li>
+                </ul>
+            </article>
+        </div>
+    </section>
+
+    <section class="landing-section landing-updates">
+        <div class="landing-section__header">
+            <h3>最新功能亮点</h3>
+            <p>持续迭代的安全情报平台，覆盖自动调度、内容增强与团队协作能力。</p>
+        </div>
+        <div class="landing-feature-grid landing-updates__grid">
+            <article class="feature-card update-card">
+                <h4>LLM 就绪摘要</h4>
+                <p>对关键情报生成结构化摘要与要点，便于内置 AI 助手或自有大模型快速理解事件背景。</p>
+            </article>
+            <article class="feature-card update-card">
+                <h4>事件级时间线</h4>
+                <p>为同源事件自动聚合历史通告、补丁信息与厂商回应，形成可审计的追踪视图。</p>
+            </article>
+            <article class="feature-card update-card">
+                <h4>多渠道推送策略</h4>
+                <p>新增 Webhook 模板与 GraphQL API，可直接对接响应编排、SOAR 平台与内部消息机器人。</p>
+            </article>
+        </div>
+    </section>
+
+    <section class="landing-section landing-snapshot">
+        <div class="landing-section__header">
+            <h3>实时情报快照</h3>
+            <p>精选几条最新事件，感受 SecLens 的归档密度与结构化呈现。</p>
+            <a href="/insights" class="landing-link">前往情报中心</a>
+        </div>
+        {% if highlights %}
+            <div class="landing-snapshot__grid">
+                {% for item in highlights %}
+                    <article class="snapshot-card">
+                        <span class="snapshot-card__time">{{ item.published_at|display_time('%m-%d %H:%M') or '刚刚' }}</span>
+                        <h4><a href="/bulletins/{{ item.id }}">{{ item.title }}</a></h4>
+                        {% set excerpt = (item.summary or item.body_text) %}
+                        {% if excerpt %}
+                            <p>{{ excerpt|truncate(140, True, "…") }}</p>
                         {% endif %}
-                        {% if bulletin.extra %}
-                            <details class="extra-details">
-                                <summary>扩展字段</summary>
-                                <pre class="json-block">{{ bulletin.extra | render_extra }}</pre>
-                            </details>
-                        {% endif %}
-                        <div class="tags">
-                            {% if selected_source %}
-                                <span class="tag">{{ selected_source.title }}</span>
-                            {% endif %}
-                            {% for label in bulletin.labels or [] %}
-                                <span class="tag">{{ label }}</span>
+                        <div class="snapshot-card__tags">
+                            {% for label in item.labels or [] %}
+                                <span>{{ label }}</span>
                             {% endfor %}
-                            {% for topic in bulletin.topics or [] %}
-                                <span class="tag">{{ topic }}</span>
+                            {% for topic in item.topics or [] %}
+                                <span>{{ topic }}</span>
                             {% endfor %}
                         </div>
-                    </li>
+                    </article>
                 {% endfor %}
-            </ul>
-            <div id="scroll-sentinel"></div>
+            </div>
+            {% if sections_preview %}
+                <aside class="landing-snapshot__sources">
+                    <h4>覆盖的情报渠道</h4>
+                    <ul>
+                        {% for section in sections_preview %}
+                            {% set primary = section.sources[0] if section.sources else None %}
+                            <li>
+                                <strong>{{ section.title }}</strong>
+                                {% if section.description %}
+                                    <span>{{ section.description }}</span>
+                                {% endif %}
+                                {% if primary %}
+                                    <span>已收录 {{ primary.total }} 条</span>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </aside>
+            {% endif %}
         {% else %}
-            <p class="empty-state">点击左侧来源查看对应资讯</p>
+            <p class="landing-empty">暂无情报展示，欢迎稍后访问或直接进入情报中心查看。</p>
         {% endif %}
     </section>
-</div>
 
-<div class="modal-backdrop" id="rss-modal" data-visible="false">
-    <div class="modal">
-        <h3>订阅来源 RSS</h3>
-        <p id="rss-modal-desc"></p>
-        <div class="rss-link" id="rss-modal-link"></div>
-        <div class="modal-buttons">
-            <button class="btn btn-primary" id="rss-copy">复制链接</button>
-            <button class="btn btn-secondary" id="rss-close">关闭</button>
+    <section class="landing-section landing-usecases">
+        <div class="landing-section__header">
+            <h3>典型使用场景</h3>
+            <p>SecLens 将安全情报转化为可执行的行动项，满足不同团队角色的日常需求。</p>
         </div>
-    </div>
-</div>
+        <div class="landing-feature-grid">
+            <article class="feature-card">
+                <h4>应急响应预警</h4>
+                <p>安全运营中心订阅高危漏洞与零日情报，自动推送到告警系统并同步处置手册。</p>
+                <ul>
+                    <li>基于 CVSS、影响组件等维度分级</li>
+                    <li>Webhook 串联 SOAR/工单节点</li>
+                    <li>视图共享给内部响应团队</li>
+                </ul>
+            </article>
+            <article class="feature-card">
+                <h4>供应链风险监测</h4>
+                <p>为供应商与依赖组件建立标签库，出现相关事件时自动通知采购及研发负责人。</p>
+                <ul>
+                    <li>跟踪厂商公告与补丁计划</li>
+                    <li>输出每日报告供业务评估</li>
+                    <li>结合 API 更新 CMDB 或风险画像</li>
+                </ul>
+            </article>
+            <article class="feature-card">
+                <h4>安全研究协作</h4>
+                <p>研究团队对接原始情报流，利用 API 与知识库二次加工，反哺内部威胁情报体系。</p>
+                <ul>
+                    <li>提供结构化数据与原文追溯</li>
+                    <li>语义标签帮助快速聚类</li>
+                    <li>导出为 Markdown/JSON 供复用</li>
+                </ul>
+            </article>
+        </div>
+    </section>
 
-<div class="source-cache" hidden aria-hidden="true">
-    {% for section in sections %}
-        {% for source in section.sources %}
-            <span>{{ source.title }}</span>
-        {% endfor %}
-    {% endfor %}
+    <section class="landing-section landing-integrations">
+        <div class="landing-integrations__content">
+            <div>
+                <h3>让情报在团队内部自然流动</h3>
+                <p>SecLens 不止于展示资讯，还是安全响应流程中的自动化节点。通过订阅策略、Webhook 工作流与 GraphQL API，把采集、检测、通报与执行串成可观察的闭环。</p>
+            </div>
+            <ul>
+                <li>
+                    <strong>订阅中心</strong>
+                    <span>按业务域或威胁特征订阅，生成专属 RSS、邮件快报与周报摘要。</span>
+                </li>
+                <li>
+                    <strong>Webhook 工作流</strong>
+                    <span>把结构化情报推送到告警平台、工单系统或自有 SOAR 引擎，触发自动化调查。</span>
+                </li>
+                <li>
+                    <strong>监控与审计</strong>
+                    <span>推送记录、失败重试与数据存档集中管理，便于合规审计与复盘。</span>
+                </li>
+            </ul>
+        </div>
+        <div class="landing-integrations__panel">
+            <div class="integrations-card">
+                <span class="integrations-card__badge">订阅策略</span>
+                <h4>自动推送你关注的事件</h4>
+                <p>组合关键词、受影响产品与标签，设置触发条件，让情报在数分钟内抵达团队。</p>
+                <div class="integrations-card__channels">
+                    <span>RSS</span>
+                    <span>Webhook</span>
+                    <span>邮件</span>
+                </div>
+                <a href="/dashboard" class="landing-link">进入控制台</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="landing-section landing-faq">
+        <div class="landing-section__header">
+            <h3>常见问题</h3>
+            <p>快速了解 SecLens 如何嵌入现有安全运营体系。</p>
+        </div>
+        <div class="landing-faq__list">
+            <article class="feature-card faq-group">
+                <h4>部署与效率</h4>
+                <ul class="faq-item-list">
+                    <li>
+                        <h5>SecLens 如何帮助安全团队缩短响应时间？</h5>
+                        <p>平台自动聚合并结构化处理来自官方通报、CNVD/CVE 与安全研究社区的资讯，通过标签与筛选条件将关键事件推送给负责响应的成员，同时保留原文与上下文用于复盘。</p>
+                    </li>
+                    <li>
+                        <h5>是否需要长期运维采集脚本？</h5>
+                        <p>所有插件运行在 SecLens 统一调度与监控体系中，支持失败重试与健康检查，开发团队只需维护采集逻辑即可，大幅降低自建爬虫管线的成本。</p>
+                    </li>
+                </ul>
+            </article>
+            <article class="feature-card faq-group">
+                <h4>集成与访问</h4>
+                <ul class="faq-item-list">
+                    <li>
+                        <h5>SecLens 支持哪些情报分发渠道？</h5>
+                        <p>除 Web 控制台之外，SecLens 支持 RSS、Webhook、邮件快报与 GraphQL API，可为不同业务线配置订阅策略，并把情报同步到告警平台或内部机器人。</p>
+                    </li>
+                    <li>
+                        <h5>如何与内部系统对接？</h5>
+                        <p>通过 Webhook 模板与 API 可以把结构化情报写入工单、SOAR 或 CMDB。我们也提供 llms.txt 与 JSON 输出，方便大模型助手快速消费。</p>
+                    </li>
+                </ul>
+            </article>
+        </div>
+    </section>
+
+    <section class="landing-cta">
+        <div class="landing-cta__content">
+            <h3>让安全情报真正服务你的决策</h3>
+            <p>现在开始体验 SecLens，把分散的通报、社区信号与内部策略纳入同一张可行动的情报地图。</p>
+        </div>
+        <div class="landing-cta__actions">
+            <a class="btn btn-elevated" href="/register">立即注册</a>
+            <a class="btn btn-ghost" href="/insights">浏览最新情报</a>
+        </div>
+    </section>
 </div>
 {% endblock %}

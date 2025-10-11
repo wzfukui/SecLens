@@ -6,6 +6,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     {% set page_title = title or 'SecLens' %}
     <title>{{ page_title if 'SecLens' in page_title else page_title ~ ' · SecLens' }}</title>
+    {% set canonical_url = canonical_url or request.url.replace(query=None) %}
+    {% set meta_description = meta_description or 'SecLens 提供全量安全情报聚合、结构化分析与自动化投递能力，帮助安全运营团队快速响应漏洞与威胁。' %}
+    {% set meta_keywords = meta_keywords if meta_keywords is string else (meta_keywords | join(', ')) if meta_keywords else 'SecLens,安全情报,漏洞通告,威胁情报,安全运营,漏洞响应' %}
+    {% set og_title = og_title or page_title %}
+    {% set og_description = og_description or meta_description %}
+    {% set meta_robots = meta_robots or 'index,follow' %}
+    {% set og_type = og_type or 'website' %}
+    {% set og_image = og_image or request.url_for('static', path='images/og-seclens-home.png') %}
+    {% set og_url = og_url or canonical_url %}
+    <link rel="canonical" href="{{ canonical_url }}">
+    <meta name="description" content="{{ meta_description }}">
+    <meta name="keywords" content="{{ meta_keywords }}">
+    <meta name="robots" content="{{ meta_robots }}">
+    <meta property="og:type" content="{{ og_type }}">
+    <meta property="og:site_name" content="SecLens">
+    <meta property="og:title" content="{{ og_title }}">
+    <meta property="og:description" content="{{ og_description }}">
+    <meta property="og:url" content="{{ og_url }}">
+    <meta property="og:image" content="{{ og_image }}">
+    <meta property="og:locale" content="zh_CN">
+    <meta name="twitter:card" content="{{ twitter_card or 'summary_large_image' }}">
+    <meta name="twitter:title" content="{{ og_title }}">
+    <meta name="twitter:description" content="{{ og_description }}">
+    <meta name="twitter:image" content="{{ og_image }}">
+    <link rel="alternate" type="application/rss+xml" title="SecLens 情报 RSS" href="{{ request.base_url }}v1/bulletins/rss">
+    {% if structured_data %}
+    <script type="application/ld+json">
+{{ structured_data | tojson(indent=2) }}
+    </script>
+    {% endif %}
     <link rel="stylesheet" href="{{ static_asset_url('bundle.css') }}">
     <style>
         header .hero {
@@ -88,7 +118,7 @@
             {% else %}
                 <h1>{{ header_text }}</h1>
             {% endif %}
-            <p>汇集权威漏洞通告与行业要闻，结合分组浏览、智能过滤、RSS 和 Webhook 推送，多通道同步你的安全情报视野。</p>
+            <p>网安资讯，一网打尽。汇集权威漏洞通告与行业要闻，结合分组浏览、智能过滤、RSS订阅 和 Webhook 推送，多通道拓展您的安全情报视野。</p>
         </div>
     </div>
     <div class="global-menu">
@@ -96,6 +126,7 @@
         <nav class="global-menu-list" id="global-menu-list" aria-label="全局导航" data-visible="false">
             <div class="menu-group" data-group="public">
                 <a href="/">首页</a>
+                <a href="/insights">资讯</a>
                 <a href="/plugin-dev">插件开发</a>
                 <a href="/dashboard/plugins">插件监控</a>
             </div>

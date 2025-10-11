@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block content %}
+<nav class="top-nav">
+    {% for section in sections %}
+        <a href="?section={{ section.slug }}" class="{% if selected_section and selected_section.slug == section.slug %}active{% endif %}">{{ section.title }}</a>
+    {% endfor %}
+</nav>
+
+<div class="layout">
+    <aside class="sources-panel">
+        <h2>来源</h2>
+        {% if selected_section and selected_section.sources %}
+            <ul class="source-list">
+                {% for source in selected_section.sources %}
+                    <li>
+                        <a href="?section={{ selected_section.slug }}&source={{ source.slug }}" class="{% if selected_source and selected_source.slug == source.slug %}active{% endif %}">
+                            <span>{{ source.title }}</span>
+                            <span class="count">{{ source.total }}</span>
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="empty-state">当前分组暂无数据源</p>
+        {% endif %}
+    </aside>
+
+    <section class="content-panel">
+        {% if selected_section %}
+            <div class="section-header">
+                <div>
+                    <h2>{{ selected_section.title }}</h2>
+                    {% if selected_section.description %}
+                        <p>{{ selected_section.description }}</p>
+                    {% endif %}
+                </div>
+                {% if selected_source %}
+                    <div class="section-actions">
+                        <button class="rss-button" data-source="{{ selected_source.title }}" data-slug="{{ selected_source.slug }}">
+                            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M3 3a1 1 0 011-1c7.18 0 13 5.82 13 13a1 1 0 11-2 0A10.99 10.99 0 004 4a1 1 0 01-1-1zm0 6a1 1 0 011-1 7 7 0 017 7 1 1 0 11-2 0 5 5 0 00-5-5 1 1 0 01-1-1zm2 7a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            RSS 订阅
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        {% if selected_source and selected_source.items %}
+            {% set initial_count = selected_source.items|length %}
+            <ul id="bulletin-list" class="bulletin-list" data-source="{{ selected_source.slug }}" data-total="{{ selected_source.total }}" data-offset="{{ initial_count }}" data-limit="{{ limit }}">
+                {% for bulletin in selected_source.items %}
+                    <li class="bulletin-card">
+                        <h2><a href="/bulletins/{{ bulletin.id }}">{{ bulletin.title }}</a></h2>
+                        <div class="meta">
+                            {% if bulletin.published_at %}
+                                发布时间 {{ bulletin.published_at|display_time or '—' }}
+                            {% endif %}
+                            {% if bulletin.fetched_at %}
+                                抓取时间 {{ bulletin.fetched_at|display_time or '—' }}
+                            {% endif %}
+                        </div>
+                        {% set display_text = bulletin.summary or bulletin.body_text %}
+                        {% if display_text %}
+                            {% set snippet = display_text[:360] %}
+                            {% set show_more = display_text|length > 360 %}
+                            <div class="excerpt" data-expanded="false" data-show-more="{{ 'true' if show_more else 'false' }}">
+                                <p>{{ snippet }}{% if show_more %}<span class="ellipsis">…</span>{% endif %}</p>
+                                <div class="snippet-text" hidden>{{ snippet }}</div>
+                                <div class="full-text" hidden>{{ display_text }}</div>
+                                {% if show_more %}
+                                    <button class="toggle-more" type="button">更多</button>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                        {% if bulletin.extra %}
+                            <details class="extra-details">
+                                <summary>扩展字段</summary>
+                                <pre class="json-block">{{ bulletin.extra | render_extra }}</pre>
+                            </details>
+                        {% endif %}
+                        <div class="tags">
+                            {% if selected_source %}
+                                <span class="tag">{{ selected_source.title }}</span>
+                            {% endif %}
+                            {% for label in bulletin.labels or [] %}
+                                <span class="tag">{{ label }}</span>
+                            {% endfor %}
+                            {% for topic in bulletin.topics or [] %}
+                                <span class="tag">{{ topic }}</span>
+                            {% endfor %}
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+            <div id="scroll-sentinel"></div>
+        {% else %}
+            <p class="empty-state">点击左侧来源查看对应资讯</p>
+        {% endif %}
+    </section>
+</div>
+
+<div class="modal-backdrop" id="rss-modal" data-visible="false">
+    <div class="modal">
+        <h3>订阅来源 RSS</h3>
+        <p id="rss-modal-desc"></p>
+        <div class="rss-link" id="rss-modal-link"></div>
+        <div class="modal-buttons">
+            <button class="btn btn-primary" id="rss-copy">复制链接</button>
+            <button class="btn btn-secondary" id="rss-close">关闭</button>
+        </div>
+    </div>
+</div>
+
+<div class="source-cache" hidden aria-hidden="true">
+    {% for section in sections %}
+        {% for source in section.sources %}
+            <span>{{ source.title }}</span>
+        {% endfor %}
+    {% endfor %}
+</div>
+{% endblock %}

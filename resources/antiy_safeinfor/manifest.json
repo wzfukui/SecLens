@@ -1,0 +1,28 @@
+{
+  "slug": "antiy_safeinfor",
+  "name": "Antiy SafeInfo Collector",
+  "version": "1.0.0",
+  "entrypoint": "collector:run",
+  "description": "Fetches security announcements from Antiy SafeInfo (安天每日安全简讯).",
+  "schedule": "28800",
+  "source": {
+    "publisher": "Antiy (安天)",
+    "homepage": "https://www.antiycloud.com/#/antiy/safeinfor",
+    "api_url": "https://www.antiycloud.com/api/daily/list"
+  },
+  "runtime": {},
+  "time_policy": {
+    "default_timezone": "Asia/Shanghai",
+    "naive_strategy": "assume_default",
+    "max_future_drift_minutes": 120,
+    "max_past_drift_days": 7
+  },
+  "ui": {
+    "group_slug": "security_announcement",
+    "group_title": "安全公告",
+    "group_description": "安全公司和机构发布的重要安全公告和威胁情报。",
+    "group_order": 20,
+    "source_title": "安天每日安全简讯",
+    "source_order": 10
+  }
+}

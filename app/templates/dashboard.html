@@ -29,12 +29,12 @@
             </div>
             <p id="vip-detail" class="panel-description"></p>
             <div id="activation-panel" class="activation-panel">
-                <form id="activation-form" class="inline-form">
-                    <label>
-                        激活码
-                        <input type="text" name="code" minlength="6" maxlength="64" required autocomplete="one-time-code">
+                <form id="activation-form" class="inline-form" style="display: flex; align-items: center; gap: 10px;">
+                    <label style="display: flex; align-items: center; gap: 5px;">
+                        激活码：
+                        <input type="text" name="code" minlength="6" maxlength="64" required autocomplete="one-time-code" style="width: 400px;">
                     </label>
-                    <button type="submit">激活 VIP</button>
+                    <button type="submit">激活/续期 VIP</button>
                 </form>
                 <div id="activation-message" class="form-message" role="alert" aria-live="polite"></div>
             </div>

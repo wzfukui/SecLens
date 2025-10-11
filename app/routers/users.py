@@ -136,14 +136,19 @@ def read_invitation_summary(
     register_url = str(request.url_for("register_page"))
     separator = "&" if "?" in register_url else "?"
     invite_url = f"{register_url}{separator}invite={quote(invite_code)}"
-    invitees = [
-        InvitationInviteeOut(
-            display_label=_mask_display_label(inv.invitee),
-            invited_at=inv.created_at,
-        )
-        for inv in invitations
-        if inv.invitee is not None
-    ]
+    invitees = []
+    for inv in invitations:
+        if inv.invitee is not None:
+            # 检查该被邀请用户是否已被赠送VIP
+            has_gifted = crud.has_user_been_gifted_vip(db, inv.invitee)
+            invitees.append(
+                InvitationInviteeOut(
+                    id=inv.invitee.id,  # 添加用户ID
+                    display_label=_mask_display_label(inv.invitee),
+                    invited_at=inv.created_at,
+                    has_gift_vip=has_gifted
+                )
+            )
     return InvitationSummaryOut(
         invite_code=invite_code,
         invite_url=invite_url,
@@ -178,7 +183,14 @@ def activate_vip_code(
     if expires_at and expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="激活码已过期")
 
-    crud.activate_vip(db, current_user)
+    # 根据激活码类型确定VIP天数
+    if activation_code.is_gift:
+        # 赠送的激活码通常是30天
+        crud.activate_vip(db, current_user, days=30)
+    else:
+        # 普通激活码默认365天
+        crud.activate_vip(db, current_user, days=365)
+    
     crud.mark_activation_code_used(db, activation_code, current_user)
     db.commit()
     db.refresh(current_user)
@@ -402,3 +414,41 @@ def delete_subscription_endpoint(
     crud.delete_subscription(db, subscription)
     db.commit()
     return {"status": "deleted"}
+
+
+from pydantic import BaseModel
+
+class GiftVipRequest(BaseModel):
+    invitee_id: int
+
+@router.post("/me/invitations/gift-vip", response_model=dict)
+def gift_vip_to_invitee(
+    request: GiftVipRequest,
+    db: Session = Depends(get_db_session),
+    current_user: models.User = Depends(get_current_active_user),
+) -> dict[str, str]:
+    """Gift VIP to an invited user by creating a special activation code."""
+    
+    # 获取被邀请用户
+    invitee = crud.get_user_by_id(db, request.invitee_id)
+    if not invitee:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="被邀请用户不存在")
+    
+    # 检查该用户是否已被任何邀请人赠送过VIP
+    if crud.has_user_been_gifted_vip(db, invitee):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该用户已被赠送过VIP体验，无法再次接受赠送")
+    
+    # 确保这两个用户之间存在邀请关系
+    stmt = select(models.UserInvitation).where(
+        models.UserInvitation.inviter_id == current_user.id,
+        models.UserInvitation.invitee_id == request.invitee_id
+    )
+    invitation = db.execute(stmt).scalars().first()
+    if not invitation:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="您没有邀请此用户，无法赠送VIP")
+    
+    # 创建赠送激活码并直接激活到被邀请用户账户
+    activation_code = crud.create_gift_vip_activation_code(db, current_user, invitee)
+    db.commit()
+    
+    return {"status": "success", "message": "VIP已成功赠送"}

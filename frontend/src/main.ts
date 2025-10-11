@@ -322,8 +322,10 @@ type Subscription = {
 };
 
 type InvitationInvitee = {
+  id: number;  // 添加用户ID字段
   display_label: string;
   invited_at: string;
+  has_gift_vip: boolean;  // 添加是否已被赠送VIP的状态
 };
 
 type InvitationSummary = {
@@ -713,9 +715,10 @@ const setupDashboardPage = () => {
         )} · 剩余约 ${remain} 天`;
       }
     }
+    // 修改：激活码输入框常驻显示，不再根据VIP状态隐藏
     const activationPanel = document.getElementById("activation-panel");
     if (activationPanel) {
-      activationPanel.style.display = status.is_vip ? "none" : "grid";
+      activationPanel.style.display = "grid"; // 常驻显示
     }
     if (activationHistory && activationHistoryList) {
       activationHistoryList.innerHTML = "";
@@ -968,14 +971,80 @@ const setupDashboardPage = () => {
     invitationInvitees.forEach((item) => {
       const li = document.createElement("li");
       li.classList.add("invitation-entry");
+      // 添加data-user-id属性用于标识用户
+      li.dataset.userId = String(item.id);
+      
+      // 创建一个容器来对齐内容
+      const contentDiv = document.createElement("div");
+      contentDiv.style.display = "flex";
+      contentDiv.style.justifyContent = "space-between";
+      contentDiv.style.alignItems = "center";
+      contentDiv.style.width = "100%";
+      
+      // 创建左侧内容容器 - 时间在前，用户名在后
+      const leftContainer = document.createElement("div");
+      leftContainer.style.display = "flex";
+      leftContainer.style.alignItems = "center";
+      
+      const meta = document.createElement("span");
+      meta.className = "invitation-time";
+      meta.style.display = "inline-block";
+      meta.style.width = "120px";  // 设置固定宽度
+      const formatted = formatDateTime(item.invited_at);
+      meta.textContent = formatted || item.invited_at;
+      
+      // 创建间距元素
+      const spacingDiv = document.createElement("div");
+      spacingDiv.style.width = "20px";  // 设置间距宽度
+      
       const title = document.createElement("strong");
       title.className = "invitation-name";
       title.textContent = item.display_label;
-      const meta = document.createElement("span");
-      meta.className = "invitation-time";
-      const formatted = formatDateTime(item.invited_at);
-      meta.textContent = formatted || item.invited_at;
-      li.append(title, meta);
+      
+      // 将时间、间距和用户名添加到容器
+      leftContainer.append(meta, spacingDiv, title);
+      
+      // 创建赠送VIP按钮
+      const giftBtn = document.createElement("button");
+      giftBtn.type = "button";
+      giftBtn.className = "gift-vip-btn";
+      giftBtn.textContent = item.has_gift_vip ? "已赠送" : "赠送VIP";
+      giftBtn.disabled = item.has_gift_vip;  // 如果已赠送，则禁用按钮
+      
+      if (item.has_gift_vip) {
+        giftBtn.title = "该用户已被赠送过VIP体验";  // 添加提示信息
+      } else {
+        giftBtn.addEventListener("click", async () => {
+          if (!window.confirm(`确定要向 ${item.display_label} 赠送一个月VIP体验吗？`)) {
+            return;
+          }
+          
+          setMessage(invitationMessage, "正在赠送VIP...", "info");
+          
+          try {
+            const result = await fetchJsonWithAuth<{status: string, message: string}>(
+              `/users/me/invitations/gift-vip`,
+              {
+                method: "POST",
+                body: JSON.stringify({ invitee_id: item.id })
+              }
+            );
+            
+            setMessage(invitationMessage, result.message, "success");
+            // 刷新页面以更新状态
+            window.location.reload();
+          } catch (error) {
+            setMessage(
+              invitationMessage,
+              error instanceof Error ? error.message : "赠送失败",
+              "error"
+            );
+          }
+        });
+      }
+      
+      contentDiv.append(leftContainer, giftBtn);
+      li.appendChild(contentDiv);
       invitationList.appendChild(li);
     });
   };

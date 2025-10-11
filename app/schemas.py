@@ -162,8 +162,10 @@ class VIPStatus(BaseModel):
 
 
 class InvitationInviteeOut(BaseModel):
+    id: int  # 添加用户ID字段
     display_label: str
     invited_at: datetime
+    has_gift_vip: bool = False  # 添加是否已被赠送VIP的状态
 
 
 class InvitationSummaryOut(BaseModel):

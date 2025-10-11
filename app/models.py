@@ -62,7 +62,7 @@ class User(Base):
     )
     push_rules = relationship("UserPushRule", back_populates="user", cascade="all, delete-orphan")
     subscriptions = relationship("UserSubscription", back_populates="user", cascade="all, delete-orphan")
-    activation_logs = relationship("ActivationCode", back_populates="used_by_user")
+    activation_logs = relationship("ActivationCode", foreign_keys="ActivationCode.used_by_user_id", back_populates="used_by_user")
     invitations_sent = relationship(
         "UserInvitation",
         back_populates="inviter",
@@ -108,8 +108,11 @@ class ActivationCode(Base):
     expires_at = Column(DateTime(timezone=True), nullable=True)
     used_at = Column(DateTime(timezone=True), nullable=True)
     used_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    is_gift = Column(Boolean, default=False, nullable=False)  # 标识是否为赠送的激活码
+    gifter_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)  # 赠送者ID（邀请者）
 
-    used_by_user = relationship("User", back_populates="activation_logs")
+    used_by_user = relationship("User", foreign_keys="ActivationCode.used_by_user_id", back_populates="activation_logs")
+    gifter_user = relationship("User", foreign_keys=[gifter_user_id])
 
 
 class UserNotificationSetting(Base):

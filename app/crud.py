@@ -221,11 +221,64 @@ def touch_user_login(session: Session, user: models.User) -> None:
     session.add(user)
 
 
-def _vip_extension(now: datetime, existing_expiry: Optional[datetime]) -> datetime:
+def _vip_extension(now: datetime, existing_expiry: Optional[datetime], days: int = 365) -> datetime:
     current_expiry = _normalize_to_utc(existing_expiry)
-    term = timedelta(days=365)
+    term = timedelta(days=days)
     base = current_expiry if current_expiry and current_expiry > now else now
     return base + term
+
+
+def create_gift_vip_activation_code(session: Session, gifter_user: models.User, invitee_user: models.User) -> models.ActivationCode:
+    """Create a special activation code for gifting VIP to invitee and activate it directly."""
+    import secrets
+    import string
+    
+    # 生成一个唯一的激活码
+    alphabet = string.ascii_letters + string.digits
+    for _ in range(64):  # 尝试最多64次生成唯一激活码
+        code = "".join(secrets.choice(alphabet) for _ in range(16))  # 16位激活码
+        exists_stmt = select(models.ActivationCode).where(models.ActivationCode.code == code)
+        if not session.execute(exists_stmt).first():
+            break
+    else:
+        raise RuntimeError("无法生成唯一的激活码，请重试")
+    
+    # 设置30天后过期
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(days=30)
+    
+    # 创建激活码记录 - 直接激活到被邀请人账户
+    activation_code = models.ActivationCode(
+        code=code,
+        is_used=True,  # 直接标记为已使用
+        is_gift=True,  # 标识这是赠送的激活码
+        gifter_user_id=gifter_user.id,  # 记录赠送者ID
+        batch="gift_vip",  # 标识这是赠送VIP的激活码
+        notes=f"Gift from user {gifter_user.id} to {invitee_user.id}",
+        created_at=now,
+        expires_at=expires_at,
+        used_at=now,  # 标记使用时间为现在
+        used_by_user_id=invitee_user.id  # 标记被谁使用
+    )
+    
+    session.add(activation_code)
+    session.flush()  # 获取ID
+    
+    # 直接为被邀请用户激活VIP（30天）
+    activate_vip(session, invitee_user, days=30)
+    
+    return activation_code
+
+
+def has_user_been_gifted_vip(session: Session, invitee_user: models.User) -> bool:
+    """检查被邀请者是否已经被赠送过VIP（任何邀请人赠送的）."""
+    stmt = select(models.ActivationCode).where(
+        models.ActivationCode.used_by_user_id == invitee_user.id,
+        models.ActivationCode.is_gift == True,
+        models.ActivationCode.is_used == True
+    )
+    result = session.execute(stmt).first()
+    return result is not None
 
 
 def _normalize_to_utc(value: Optional[datetime]) -> Optional[datetime]:
@@ -275,12 +328,12 @@ def list_invitations(
     return records, int(total)
 
 
-def activate_vip(session: Session, user: models.User) -> None:
-    """Grant or extend VIP for one year from activation."""
+def activate_vip(session: Session, user: models.User, days: int = 365) -> None:
+    """Grant or extend VIP for specified days from activation."""
 
     now = datetime.now(timezone.utc)
     user.vip_activated_at = user.vip_activated_at or now
-    user.vip_expires_at = _vip_extension(now, user.vip_expires_at)
+    user.vip_expires_at = _vip_extension(now, user.vip_expires_at, days)
     user.updated_at = now
     session.add(user)
 

@@ -1,0 +1,24 @@
+{
+  "code": 200,
+  "msg": "成功",
+  "data": {
+    "id": "1965333731931074561",
+    "creatorId": 1760069603,
+    "title": "关于防范苹果公司iOS/iPadOS/macOS越界写入高危漏洞的风险提示",
+    "keyword": null,
+    "subhead": null,
+    "content": "<p style=\"text-indent: 32pt; line-height: 2;\"><span style=\"font-size: 19px; font-family: 宋体;\">近日，工业和信息化部网络安全威胁和漏洞信息共享平台（</span><span style=\"font-size: 19px; font-family: &quot;Times New Roman&quot;;\">NVDB</span><span style=\"font-size: 19px; font-family: 宋体;\">）监测发现，</span><span style=\"color: rgb(0, 0, 0); font-size: 19px; font-family: 宋体;\">苹果公司</span><span style=\"color: rgb(0, 0, 0); font-size: 19px; font-family: &quot;Times New Roman&quot;;\">iOS/iPadOS/macOS</span><span style=\"color: rgb(0, 0, 0); font-size: 19px; font-family: 宋体;\">存在越界写入高危漏洞，已被用于网络攻击。</span></p><p style=\"text-indent: 32pt; line-height: 2;\"><span style=\"color: rgb(0, 0, 0); font-size: 19px; font-family: &quot;Times New Roman&quot;;\">iOS/iPadOS/macOS</span><span style=\"color: rgb(0, 0, 0); font-size: 19px; font-family: 宋体;\">是由美国苹果公司开发的操作系统，由于其</span><span style=\"color: rgb(0, 0, 0); font-size: 19px; font-family: &quot;Times New Roman&quot;;\">ImageIO</span><span style=\"color: rgb(0, 0, 0); font-size: 19px; font-family: 宋体;\">框架存在越界写入漏洞，处理恶意图像文件可能会导致内存损坏。受影响版本为&lt;</span><span style=\"color: rgb(0, 0, 0); font-size: 19px; font-family: &quot;Times New Roman&quot;;\">iOS 18.6.2、&lt;iPadOS 18.6.2、&lt;iPadOS 17.7.10、&lt;macOS Sequoia 15.6.1、&lt;macOS Sonoma 14.7.8、&lt;macOS Ventura 13.7.8</span><span style=\"color: rgb(0, 0, 0); font-size: 19px; font-family: 宋体;\">。</span></p><p style=\"text-indent: 32pt; text-align: left; line-height: 2;\"><span style=\"font-size: 19px; font-family: 宋体;\">目前，苹果公司已修复该漏洞并发布安全公告（链接：</span><span style=\"font-size: 19px; font-family: &quot;Times New Roman&quot;;\">https://support.apple.com/zh-cn/124925、https://support.apple.com/zh-cn/124926、https://support.apple.com/zh-cn/124927、https://support.apple.com/zh-cn/124928、https://support.apple.com/zh-cn/124929</span><span style=\"font-size: 19px; font-family: 宋体;\">）。建议相关单位和用户立即开展隐患排查，及时升级至最新安全版本，防范网络攻击风险。</span></p>",
+    "attachmentId": null,
+    "type": 1,
+    "examineStatus": 2,
+    "isIssu": 1,
+    "isDel": 0,
+    "userId": 1760069603,
+    "createTime": "2025-09-09T16:37:30.000+08:00",
+    "updateTime": "2025-09-10T14:02:15.000+08:00",
+    "releaseTime": "2025-09-10T00:00:00.000+08:00",
+    "clickNumber": 0,
+    "origin": "工业和信息化部网络安全威胁和漏洞信息共享平台",
+    "systemType": 2
+  }
+}

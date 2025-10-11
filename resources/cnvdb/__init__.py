@@ -1,0 +1,1 @@
+"""CNVDB plugin package."""

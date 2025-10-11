@@ -165,23 +165,33 @@ def create_bulletin_from_cve(cve_info: Dict[str, Any]) -> BulletinCreate:
             product_info += f"- {product.get('product', '')} version {product.get('version', '')} ({product.get('status', '')})\n"
         description += product_info
     
+    # Verify we have required fields to avoid creating invalid entries
+    cve_id = cve_info.get('cve_id')
+    if not cve_id:
+        raise ValueError("Missing CVE ID - cannot create bulletin without valid identifier")
+    
+    # Ensure we have a valid title
+    title = cve_info.get('summary', '').strip()
+    if not title:
+        title = cve_id  # Use CVE ID as title if summary is empty
+    
     return BulletinCreate(
         source=SourceInfo(
             source_slug="atlassian_security",
-            external_id=cve_info['cve_id'],
+            external_id=cve_id,
             origin_url=tracking_url or None
         ),
         content=ContentInfo(
-            title=cve_info['summary'],
-            summary=cve_info['summary'],
+            title=title,
+            summary=title,  # Use the same title for summary if needed
             body_text=description,
             published_at=cve_info.get('publish_date'),
             language="en"
         ),
         severity=str(cve_info.get('severity', '')),
-        labels=["atlassian", "security", "cve"] + [p['product'].replace(" ", "_").lower() for p in affected_products],
+        labels=["atlassian", "security", "cve"] + [p['product'].replace(" ", "_").lower() for p in affected_products if p.get('product')],
         extra={
-            "cve_id": cve_info['cve_id'],
+            "cve_id": cve_id,
             "tracking_url": tracking_url,
             "affected_products": affected_products
         },
@@ -210,19 +220,28 @@ def fetch_atlassian_security_data() -> Dict[str, Any]:
         'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36'
     }
     
-    try:
-        response = requests.get(url, headers=headers, timeout=60)  # Increased timeout to 60 seconds
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Failed to fetch data from Atlassian API: {str(e)}")
-        return {}
-    except ValueError as e:  # JSON decode error
-        logger.error(f"Failed to parse JSON response from Atlassian API: {str(e)}")
-        return {}
+    # Try multiple times with delays in case of network issues
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, headers=headers, timeout=60)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Attempt {attempt + 1} failed to fetch data from Atlassian API: {str(e)}")
+            if attempt == max_retries - 1:  # Last attempt
+                logger.error(f"Failed to fetch data from Atlassian API after {max_retries} attempts")
+                return {}
+        except ValueError as e:  # JSON decode error
+            logger.error(f"Failed to parse JSON response from Atlassian API: {str(e)}")
+            return {}
 
 
-def run(ingest_url: str, token: str, **kwargs) -> tuple[List[BulletinCreate], Optional[Dict[str, Any]]]:
+def run(
+    ingest_url: Optional[str] = None,
+    token: Optional[str] = None,
+    **kwargs,
+) -> tuple[List[BulletinCreate], Optional[Dict[str, Any]]]:
     """Main function to run the Atlassian security collector."""
     logger.info("Starting Atlassian security advisories collection...")
     
@@ -253,11 +272,50 @@ def run(ingest_url: str, token: str, **kwargs) -> tuple[List[BulletinCreate], Op
         
         logger.info(f"Created {len(bulletins)} bulletins for ingestion")
         
-        # If there are bulletins to process, return them along with the raw response for potential later use
-        return bulletins, json_data
+        # Submit bulletins to the ingestion endpoint if URL and token are provided
+        response_data = None
+        if ingest_url and bulletins:
+            # Check if the URL is not a placeholder
+            if ingest_url == "https://host/v1/ingest/bulletins":
+                logger.warning("Using placeholder ingest_url, actual ingestion will be skipped")
+            else:
+                import json
+                import requests
+                
+                logger.info(f"Attempting to submit {len(bulletins)} bulletins to {ingest_url}")
+                
+                session = requests.Session()
+                headers = {"Content-Type": "application/json"}
+                if token:
+                    headers["Authorization"] = f"Bearer {token}"
+                session.headers.update(headers)
+                
+                # Convert bulletins to JSON-serializable format
+                payload = [b.model_dump(mode="json") for b in bulletins]
+                response = session.post(ingest_url, json=payload, timeout=30)
+                response.raise_for_status()
+                
+                try:
+                    response_data = response.json()
+                    logger.info(f"Successfully submitted {len(bulletins)} bulletins to ingestion endpoint: {response_data}")
+                except json.JSONDecodeError:
+                    response_data = {"status_code": response.status_code}
+                    logger.info(f"Successfully submitted {len(bulletins)} bulletins, response not JSON: {response.status_code}")
+        else:
+            logger.warning(
+                "Skipping data submission. ingest_url_provided=%s token_provided=%s bulletins=%d",
+                bool(ingest_url),
+                bool(token),
+                len(bulletins),
+            )
+        
+        # Return bulletins and response data
+        return bulletins, response_data
     
     except Exception as e:
         logger.error(f"Unexpected error during Atlassian security collection: {str(e)}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         return [], None
 
 

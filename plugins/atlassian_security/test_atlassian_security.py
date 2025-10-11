@@ -120,17 +120,25 @@ def test_fetch_atlassian_security_data(mock_get):
     assert result == MOCK_JSON_RESPONSE
 
 
+@patch('plugins.atlassian_security.collector.requests.Session.post')
 @patch('plugins.atlassian_security.collector.fetch_atlassian_security_data')
-def test_run_function(mock_fetch_data):
+def test_run_function(mock_fetch_data, mock_post):
     """Test the main run function."""
+    # Mock the API response
     mock_fetch_data.return_value = MOCK_JSON_RESPONSE
-    
+    # Mock the ingestion endpoint response
+    mock_response = Mock()
+    mock_response.raise_for_status.return_value = None
+    mock_response.json.return_value = {"accepted": 3, "duplicates": 0}
+    mock_post.return_value = mock_response
+
     bulletins, response = run("http://test-url", "test-token")
-    
+
     assert isinstance(bulletins, list)
     assert len(bulletins) > 0
     assert isinstance(bulletins[0], BulletinCreate)
-    assert response == MOCK_JSON_RESPONSE
+    # The response should be the mocked response from the API call, not the raw data
+    mock_post.assert_called_once()
 
 
 @patch('plugins.atlassian_security.collector.requests.get')

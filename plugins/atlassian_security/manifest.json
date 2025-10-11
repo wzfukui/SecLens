@@ -1,7 +1,7 @@
 {
   "slug": "atlassian_security",
   "name": "Atlassian Security Advisories Collector",
-  "version": "1.0.4",
+  "version": "1.0.10",
   "entrypoint": "collector:run",
   "description": "Fetches security advisories from Atlassian vulnerability transparency API",
   "schedule": "14400",
@@ -10,10 +10,7 @@
     "homepage": "https://www.atlassian.com/trust/data-protection/vulnerabilities",
     "feed_url": "https://www.atlassian.com/gateway/api/vuln-transparency/v1/products"
   },
-  "runtime": {
-    "ingest_url": "https://host/v1/ingest/bulletins",
-    "token": "<api token>"
-  },
+  "runtime": {},
   "time_policy": {
     "default_timezone": "UTC",
     "naive_strategy": "assume_default",

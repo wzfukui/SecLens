@@ -72,3 +72,6 @@ sources:
   tc260_consultations:
     default_timezone: Asia/Shanghai
     naive_strategy: assume_default
+  cnvdb:
+    default_timezone: Asia/Shanghai
+    naive_strategy: assume_default

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    {% set page_title = title or 'SecLens' %}
+    {% set page_title = title or 'SecLens 情报雷达 - 您的一站式网络安全资讯获取工作台' %}
     <title>{{ page_title if 'SecLens' in page_title else page_title ~ ' · SecLens' }}</title>
     {% set canonical_url = canonical_url or request.url.replace(query=None) %}
     {% set meta_description = meta_description or 'SecLens 提供全量安全情报聚合、结构化分析与自动化投递能力，帮助安全运营团队快速响应漏洞与威胁。' %}

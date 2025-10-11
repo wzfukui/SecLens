@@ -57,7 +57,7 @@ def user_subscription_feed(
     rss = ET.Element("rss", version="2.0")
     channel = ET.SubElement(rss, "channel")
     title = f"SecLens 订阅 - {subscription.name}"
-    base_url = str(request.base_url) if request else "https://seclens.local/"
+    base_url = str(request.base_url) if request else "https://seclens.info/"
     ET.SubElement(channel, "title").text = title
     ET.SubElement(channel, "link").text = base_url
     description_parts = ["SecLens 自定义订阅"]

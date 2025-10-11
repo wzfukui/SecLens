@@ -382,10 +382,11 @@ body[data-page="home"] main {
 
 .landing-section__header p {
   margin: 0;
-  max-width: 720px;
+  max-width: 960px;
   color: #475569;
   font-size: 1.05rem;
   line-height: 1.75;
+  white-space: nowrap;
 }
 
 .landing-faq__list {

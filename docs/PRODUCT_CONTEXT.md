@@ -423,7 +423,7 @@ CREATE TABLE reactions (
 import requests, time
 from datetime import datetime, timezone
 
-API = "https://api.seclens.local/v1/ingest/items"
+API = "https://api.seclens.info/v1/ingest/items"
 TOKEN = "${INGEST_TOKEN}"
 
 SESSION = requests.Session()

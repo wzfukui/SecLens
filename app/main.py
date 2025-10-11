@@ -240,10 +240,10 @@ def create_app() -> FastAPI:
             "# Guidance for large language models interacting with SecLens",
             f"site: {base_url}/",
             f"sitemap: {base_url}/sitemap.xml",
-            "contact: hello@seclens.io",
+            "contact: hello@seclens.info",
             "rate-limit: 60 requests/minute",
             "preferred-formats: json, rss, html",
-            "purpose: SecLens 安全情报台聚合官方漏洞通告、厂商公告与安全研究，为安全团队提供快速筛选与响应支持。",
+            "purpose: SecLens 情报雷达聚合官方漏洞通告、厂商公告与安全研究，为安全团队提供快速筛选与响应支持。",
             "core-flows: 浏览 /insights 获取按来源与主题分组的资讯流；使用查询参数 text、section、source 进行精准过滤。",
             "vulnerability-alerts: /insights?section=vulnerability_alerts 收敛高危漏洞公告，适合生成升级建议与修复优先级。",
             "bulletin-detail: /bulletins/<id> 返回结构化 JSON，字段包含标题、来源、发布时间、威胁等级与标签，可用于引用原文。",
@@ -273,7 +273,7 @@ def create_app() -> FastAPI:
         base_url = str(request.base_url).rstrip("/")
         og_image_url = str(request.url_for("static", path="images/og-seclens-home.png"))
         logo_url = str(request.url_for("static", path="images/seclens-logo.png"))
-        meta_description = "SecLens 安全情报台聚合官方漏洞通告、厂商公告与安全研究，提供标签筛选、自动订阅与多通道推送，帮助安全团队快速响应漏洞与威胁事件。"
+        meta_description = "SecLens 情报雷达聚合官方漏洞通告、厂商公告与安全研究，提供标签筛选、自动订阅与多通道推送，帮助安全团队快速响应漏洞与威胁事件。"
         structured_data = {
             "@context": "https://schema.org",
             "@graph": [
@@ -287,7 +287,7 @@ def create_app() -> FastAPI:
                 {
                     "@type": "WebSite",
                     "@id": f"{base_url}/#website",
-                    "name": "SecLens 安全情报台",
+                    "name": "SecLens 情报雷达",
                     "url": f"{base_url}/",
                     "description": meta_description,
                     "publisher": {"@id": f"{base_url}/#organization"},
@@ -326,7 +326,7 @@ def create_app() -> FastAPI:
         }
 
         context: dict[str, Any] = {
-            "title": "SecLens 安全情报台",
+            "title": "SecLens 情报雷达 - 实时威胁情报工作台",
             "header": "SecLens 情报雷达",
             "page_id": "home",
             "highlights": highlights,
@@ -334,7 +334,7 @@ def create_app() -> FastAPI:
             "sections_preview": state["sections_preview"],
             "meta_description": meta_description,
             "meta_keywords": ["SecLens", "安全情报平台", "漏洞通告聚合", "威胁情报自动化"],
-            "og_title": "SecLens 安全情报台｜实时漏洞与威胁情报聚合",
+            "og_title": "SecLens 情报雷达｜实时漏洞与威胁情报聚合",
             "og_description": meta_description,
             "og_image": og_image_url,
             "og_url": f"{base_url}/",

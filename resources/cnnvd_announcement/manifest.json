@@ -1,0 +1,28 @@
+{
+  "slug": "cnnvd_announcement",
+  "name": "CNNVD Announcement Database Collector",
+  "version": "1.0.0",
+  "entrypoint": "collector:run",
+  "description": "Fetches vulnerability announcement information from China National Vulnerability Database (CNNVD).",
+  "schedule": "3600",
+  "source": {
+    "publisher": "National Information Security Vulnerability Database (CNNVD)",
+    "homepage": "https://www.cnnvd.org.cn",
+    "api_url": "https://www.cnnvd.org.cn/web/homePage/vulWarnList"
+  },
+  "runtime": {},
+  "time_policy": {
+    "default_timezone": "Asia/Shanghai",
+    "naive_strategy": "assume_default",
+    "max_future_drift_minutes": 120,
+    "max_past_drift_days": 365
+  },
+  "ui": {
+    "group_slug": "vulnerability_alerts",
+    "group_title": "漏洞预警",
+    "group_description": "官方与权威渠道发布的安全漏洞与补丁通知。",
+    "group_order": 10,
+    "source_title": "国家信息安全漏洞库-CNNVD通报",
+    "source_order": 30
+  }
+}

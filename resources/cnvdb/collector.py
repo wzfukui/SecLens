@@ -11,13 +11,13 @@ from bs4 import BeautifulSoup
 
 from app.schemas import BulletinCreate, ContentInfo, SourceInfo
 from app.time_utils import resolve_published_at
-from collectors.cnvdb_client import CNVDBClient
+from .cnvdb_client import CNVDBClient
 
 LOGGER = logging.getLogger(__name__)
 USER_AGENT = "SecLensCNVDBCollector/1.0"
 DEFAULT_PAGE_SIZE = 15
 DEFAULT_LANGUAGE = "zh"
-ORIGIN_URL_TEMPLATE = "https://cnvdb.org.cn/#/policy/detail?id={policy_id}"
+ORIGIN_URL_TEMPLATE = "https://cnvdb.org.cn/#/policy/detail/{policy_id}"
 
 
 def _html_to_text(html: str | None) -> str | None:

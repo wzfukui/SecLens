@@ -8,6 +8,11 @@
 .plugins-table td.numeric {
     text-align: right;
 }
+.plugins-table .actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
 .chart-wrapper {
     position: relative;
     height: 320px;
@@ -61,9 +66,16 @@
                     <td>
                         <strong><a href="/dashboard/plugins/{{ plugin.slug }}">{{ plugin.name }}</a></strong>
                         <div class="slug">{{ plugin.slug }}</div>
-                        {% if is_admin and not plugin.is_active %}
-                        <button class="activate-btn" data-id="{{ plugin.id }}">激活并运行</button>
+                        <div class="actions">
+                        {% if is_admin %}
+                        {% if plugin.is_active %}
+                        <button class="deactivate-btn" data-id="{{ plugin.id }}">禁用</button>
+                        <button class="run-btn" data-id="{{ plugin.id }}">立即运行</button>
+                        {% else %}
+                        <button class="activate-btn" data-id="{{ plugin.id }}">激活</button>
                         {% endif %}
+                        {% endif %}
+                        </div>
                     </td>
                     <td>{{ plugin.version }}</td>
                     <td>
@@ -139,8 +151,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const buttons = document.querySelectorAll('.activate-btn');
-    buttons.forEach((btn) => {
+    // Activate button handler
+    const activateButtons = document.querySelectorAll('.activate-btn');
+    activateButtons.forEach((btn) => {
         btn.addEventListener('click', async () => {
             const pluginId = btn.dataset.id;
             if (!pluginId) return;
@@ -148,23 +161,74 @@ document.addEventListener('DOMContentLoaded', () => {
             const originalText = btn.textContent;
             btn.textContent = '激活中…';
             try {
-                const activateResp = await fetch(`/v1/plugins/${pluginId}/activate`, {
+                const response = await fetch(`/v1/plugins/${pluginId}/activate`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({activate: true})
                 });
-                if (!activateResp.ok) {
-                    const message = await activateResp.text();
-                    throw new Error(message || activateResp.statusText);
-                }
-                const runResp = await fetch(`/v1/plugins/${pluginId}/run`, {method: 'POST'});
-                if (!runResp.ok) {
-                    const message = await runResp.text();
-                    throw new Error(message || runResp.statusText);
+                if (!response.ok) {
+                    const message = await response.text();
+                    throw new Error(message || response.statusText);
                 }
                 window.location.reload();
             } catch (error) {
                 alert(`激活失败：${error}`);
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        });
+    });
+
+    // Deactivate button handler
+    const deactivateButtons = document.querySelectorAll('.deactivate-btn');
+    deactivateButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+            const pluginId = btn.dataset.id;
+            if (!pluginId) return;
+            btn.disabled = true;
+            const originalText = btn.textContent;
+            btn.textContent = '禁用中…';
+            try {
+                const response = await fetch(`/v1/plugins/${pluginId}/activate`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({activate: false})
+                });
+                if (!response.ok) {
+                    const message = await response.text();
+                    throw new Error(message || response.statusText);
+                }
+                window.location.reload();
+            } catch (error) {
+                alert(`禁用失败：${error}`);
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        });
+    });
+
+    // Run now button handler
+    const runButtons = document.querySelectorAll('.run-btn');
+    runButtons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+            const pluginId = btn.dataset.id;
+            if (!pluginId) return;
+            btn.disabled = true;
+            const originalText = btn.textContent;
+            btn.textContent = '运行中…';
+            try {
+                const response = await fetch(`/v1/plugins/${pluginId}/run`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                if (!response.ok) {
+                    const message = await response.text();
+                    throw new Error(message || response.statusText);
+                }
+                alert('插件已运行');
+                window.location.reload();
+            } catch (error) {
+                alert(`运行失败：${error}`);
                 btn.disabled = false;
                 btn.textContent = originalText;
             }

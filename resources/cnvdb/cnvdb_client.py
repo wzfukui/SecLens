@@ -100,12 +100,10 @@ class CNVDBClient:
         header_value, canonical_path = generate_signature(method, endpoint, params=params)
         headers = {"signature": header_value}
 
-        # Ensure params ordering matches signature canonical query string
-        normalised_params = _normalise_items(params)
-
         url = f"{self.base_url.rstrip('/')}{canonical_path}"
         LOGGER.debug("Fetching %s %s", method, url)
-        response = self.session.request(method, url, headers=headers, params=normalised_params or None, timeout=20)
+        # Don't pass params again as they are already included in canonical_path
+        response = self.session.request(method, url, headers=headers, timeout=20)
         response.raise_for_status()
         return response
 

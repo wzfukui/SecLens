@@ -1,7 +1,7 @@
 {
   "slug": "cnvdb",
   "name": "MIIT CNVDB Collector",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "entrypoint": "collector:run",
   "description": "Collects vulnerability risk alerts published by the MIIT CNVDB platform.",
   "schedule": "3600",

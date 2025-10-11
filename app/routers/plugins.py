@@ -226,7 +226,7 @@ def activate_plugin(
                 version.next_run_at = compute_next_run(
                     version.schedule,
                     reference=now,
-                    immediate=True,
+                    immediate=False,
                 )
             else:
                 version.is_active = False

@@ -1,7 +1,7 @@
 {
   "slug": "amazon_linux_announcements",
   "name": "Amazon Linux Security Announcements",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "entrypoint": "collector:run",
   "description": "Collects Amazon Linux security announcements from the official HTML table.",
   "schedule": "7200",
@@ -15,7 +15,7 @@
     "group_title": "厂商发布",
     "group_description": "厂商对产品安全、配置或策略的更新说明。",
     "group_order": 10,
-    "source_title": "Amazon Linux 安全部公告",
+    "source_title": "Amazon Linux 安全公告",
     "source_order": 100
   }
 }

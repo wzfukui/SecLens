@@ -65,7 +65,7 @@ def test_normalize():
     
     assert bulletin is not None
     assert bulletin.source.source_slug == "antiy_safeinfor"
-    assert "安天威胁情报中心-" in bulletin.content.title
+    assert "20251011-" in bulletin.content.title
     assert "安天CERT持续对" in bulletin.content.body_text
     assert bulletin.content.language == "zh-CN"
     assert "security_announcement" in bulletin.topics
@@ -121,7 +121,7 @@ def test_collect():
         
         # Check basic fields for first bulletin
         assert first_bulletin.source.source_slug == "antiy_safeinfor"
-        assert "安天威胁情报中心-" in first_bulletin.content.title
+        assert "20251011-" in first_bulletin.content.title
         assert "Crimson Collective" in first_bulletin.content.title
         assert "security_announcement" in first_bulletin.topics
         assert "tag:Crimson Collective" in first_bulletin.labels
@@ -129,7 +129,7 @@ def test_collect():
         
         # Check basic fields for second bulletin
         assert second_bulletin.source.source_slug == "antiy_safeinfor"
-        assert "安天威胁情报中心-" in second_bulletin.content.title
+        assert "20251011-" in second_bulletin.content.title
         assert "Service Finder" in second_bulletin.content.title
         assert "安全公司Wordfence" in second_bulletin.content.body_text
         assert "tag:Service Finder" in second_bulletin.labels
@@ -156,7 +156,7 @@ def test_duplicate_handling():
     # First collection - should process normally
     first_bulletin = collector.normalize(sample_item, "20251011")
     assert first_bulletin is not None
-    assert "安天威胁情报中心-" in first_bulletin.content.title
+    assert "20251011-" in first_bulletin.content.title
     
     # Second collection with the same item - should return None (skip duplicates)
     second_bulletin = collector.normalize(sample_item, "20251011")

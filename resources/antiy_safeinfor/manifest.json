@@ -1,7 +1,7 @@
 {
   "slug": "antiy_safeinfor",
   "name": "Antiy SafeInfo Collector",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "entrypoint": "collector:run",
   "description": "Fetches security announcements from Antiy SafeInfo (安天每日安全简讯).",
   "schedule": "14400",

@@ -114,8 +114,8 @@ class AntiySafeInfoCollector:
         # Mark this item as processed after successful normalization
         self._mark_processed(item_id)
         
-        # Create proper title with prefix
-        full_title = f"安天威胁情报中心-{title}" if title else f"安天威胁情报中心-安全简讯 {daily_time}"
+        # Create proper title with date prefix
+        full_title = f"{daily_time}-{title}" if title else f"{daily_time}-安全简讯"
         
         # Parse the event_time for published_at
         published_at, time_meta = resolve_published_at(

@@ -5,8 +5,7 @@ This plugin collects security announcements from Antiy (安天) daily security b
 ## Source Information
 - **Publisher**: Antiy (安天)
 - **Homepage**: https://www.antiycloud.com/#/antiy/safeinfor
-- **API Endpoint**: https://www.antiycloud.com/api/daily/list
-- **Detail Endpoint**: https://www.antiycloud.com/#/dailydetail/{daily_time}?keyword=
+- **API Endpoint**: https://www.antiycloud.com/api/dailyDetail/{daily_time}
 
 ## Data Collected
 - Daily security briefings with multiple security news items
@@ -16,7 +15,7 @@ This plugin collects security announcements from Antiy (安天) daily security b
 
 ## Fields Mapped
 - `id`: Internal item identifier
-- `title`: Daily briefing title (prefixed with "安天威胁情报中心-")
+- `title`: Item title prefixed with date in format 'YYYYMMDD-'
 - `content`: HTML content of the security briefing
 - `daily_time`: Date string in format YYYYMMDD
 - `time`: Publication timestamp
@@ -28,7 +27,7 @@ This plugin collects security announcements from Antiy (安天) daily security b
 - Order: 10 (within security announcements group)
 
 ## Schedule
-- Polls every 28800 seconds (8 hours)
+- Polls every 14400 seconds (4 hours)
 
 ## Time Policy
 - Default timezone: Asia/Shanghai
